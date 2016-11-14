@@ -137,48 +137,48 @@ set(breeze_PART_SRCS
 if(BREEZE_USE_KDE4)
 
   kde4_add_kcfg_files(breeze_PART_SRCS breezestyleconfigdata.kcfgc)
-  kde4_add_plugin(breeze ${breeze_PART_SRCS} kstylekde4compat.cpp)
-  target_link_libraries(breeze  ${KDE4_KDEUI_LIBS})
+  kde4_add_plugin(adwaita ${breeze_PART_SRCS} kstylekde4compat.cpp)
+  target_link_libraries(adwaita ${KDE4_KDEUI_LIBS})
 
   if(BREEZE_HAVE_X11)
-    target_link_libraries(breeze ${X11_XCB_LIBRARIES})
-    target_link_libraries(breeze ${XCB_LIBRARIES})
+    target_link_libraries(adwaita ${X11_XCB_LIBRARIES})
+    target_link_libraries(adwaita ${XCB_LIBRARIES})
   endif()
 
-  install(TARGETS breeze  DESTINATION ${PLUGIN_INSTALL_DIR}/plugins/styles/)
+  install(TARGETS adwaita  DESTINATION ${PLUGIN_INSTALL_DIR}/plugins/styles/)
 
 else()
 
-  kconfig_add_kcfg_files(breeze_PART_SRCS breezestyleconfigdata.kcfgc)
-  add_library(breeze MODULE ${breeze_PART_SRCS})
-  target_link_libraries(breeze Qt5::Core Qt5::Gui Qt5::Widgets Qt5::DBus)
-  target_link_libraries(breeze KF5::ConfigCore KF5::ConfigWidgets KF5::GuiAddons KF5::WindowSystem)
+  kconfig_add_kcfg_files(adwaita breezestyleconfigdata.kcfgc)
+  add_library(adwaita MODULE ${breeze_PART_SRCS})
+  target_link_libraries(adwaita Qt5::Core Qt5::Gui Qt5::Widgets Qt5::DBus)
+  target_link_libraries(adwaita KF5::ConfigCore KF5::ConfigWidgets KF5::GuiAddons KF5::WindowSystem)
 
   if( KF5FrameworkIntegration_FOUND )
-  target_link_libraries(breeze KF5::Style)
+  target_link_libraries(adwaita KF5::Style)
   endif()
 
   if (WIN32)
     # As stated in http://msdn.microsoft.com/en-us/library/4hwaceh6.aspx M_PI only gets defined
     # when if _USE_MATH_DEFINES is defined
-    target_compile_definitions(breeze PRIVATE _USE_MATH_DEFINES _BSD_SOURCE)
+    target_compile_definitions(adwaita PRIVATE _USE_MATH_DEFINES _BSD_SOURCE)
   endif()
 
   if(BREEZE_HAVE_X11)
-    target_link_libraries(breeze ${XCB_LIBRARIES})
-    target_link_libraries(breeze Qt5::X11Extras)
+    target_link_libraries(adwaita ${XCB_LIBRARIES})
+    target_link_libraries(adwaita Qt5::X11Extras)
   endif()
 
   if(BREEZE_HAVE_KWAYLAND)
-    target_link_libraries(breeze KF5::WaylandClient)
+    target_link_libraries(adwaita KF5::WaylandClient)
   endif()
 
-  install(TARGETS breeze DESTINATION ${QT_PLUGIN_INSTALL_DIR}/styles/)
+  install(TARGETS adwaita DESTINATION ${QT_PLUGIN_INSTALL_DIR}/styles/)
 
 endif()
 
 ########### install files ###############
-install(FILES breeze.themerc  DESTINATION  ${DATA_INSTALL_DIR}/kstyle/themes)
+install(FILES adwaita.themerc  DESTINATION  ${DATA_INSTALL_DIR}/kstyle/themes)
 
 ########### subdirectories ###############
-add_subdirectory(config)
+#add_subdirectory(config)

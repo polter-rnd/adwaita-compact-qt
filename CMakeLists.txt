@@ -22,28 +22,24 @@ else()
   include(GenerateExportHeader)
   include(GtkUpdateIconCache)
 
-  option(WITH_DECORATIONS "Build Breeze window decorations for KWin" ON)
+  option(WITH_DECORATIONS "Build Breeze window decorations for KWin" OFF)
   if(WITH_DECORATIONS)
     find_package(KDecoration2 REQUIRED)
     add_subdirectory(kdecoration)
   endif()
 
-  add_subdirectory(cursors)
   add_subdirectory(kstyle)
-  add_subdirectory(misc)
-  add_subdirectory(qtquickcontrols)
-  add_subdirectory(wallpapers)
+  #add_subdirectory(qtquickcontrols)
 
-  INSTALL(FILES colors/Breeze.colors DESTINATION ${DATA_INSTALL_DIR}/color-schemes/)
-  INSTALL(FILES colors/BreezeDark.colors DESTINATION ${DATA_INSTALL_DIR}/color-schemes/)
-  INSTALL(FILES colors/BreezeHighContrast.colors DESTINATION ${DATA_INSTALL_DIR}/color-schemes/)
+  #INSTALL(FILES colors/Breeze.colors DESTINATION ${DATA_INSTALL_DIR}/color-schemes/)
+  #INSTALL(FILES colors/BreezeDark.colors DESTINATION ${DATA_INSTALL_DIR}/color-schemes/)
+  #INSTALL(FILES colors/BreezeHighContrast.colors DESTINATION ${DATA_INSTALL_DIR}/color-schemes/)
 
   find_package(KF5Package CONFIG REQUIRED)
-  kpackage_install_package(lookandfeel.dark org.kde.breezedark.desktop look-and-feel plasma lookandfeel)
-  if(EXISTS ${CMAKE_SOURCE_DIR}/po AND IS_DIRECTORY ${CMAKE_SOURCE_DIR}/po)
-    find_package(KF5I18n CONFIG REQUIRED)
-    ki18n_install(po)
-  endif()
+  #if(EXISTS ${CMAKE_SOURCE_DIR}/po AND IS_DIRECTORY ${CMAKE_SOURCE_DIR}/po)
+  #  find_package(KF5I18n CONFIG REQUIRED)
+  #  ki18n_install(po)
+  #endif()
 
   include(ECMSetupVersion)
   ecm_setup_version(${PROJECT_VERSION} VARIABLE_PREFIX BREEZE
@@ -51,18 +47,18 @@ else()
                     )
 
   # create a Config.cmake and a ConfigVersion.cmake file and install them
-  set(CMAKECONFIG_INSTALL_DIR "${CMAKECONFIG_INSTALL_PREFIX}/Breeze")
+  #set(CMAKECONFIG_INSTALL_DIR "${CMAKECONFIG_INSTALL_PREFIX}/Breeze")
 
-  ecm_configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/BreezeConfig.cmake.in"
-                                    "${CMAKE_CURRENT_BINARY_DIR}/BreezeConfig.cmake"
-                                    INSTALL_DESTINATION  ${CMAKECONFIG_INSTALL_DIR}
-                                    )
+  #ecm_configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/BreezeConfig.cmake.in"
+  #                                  "${CMAKE_CURRENT_BINARY_DIR}/BreezeConfig.cmake"
+  #                                  INSTALL_DESTINATION  ${CMAKECONFIG_INSTALL_DIR}
+  #                                  )
 
-  install(FILES  "${CMAKE_CURRENT_BINARY_DIR}/BreezeConfig.cmake"
-                 "${CMAKE_CURRENT_BINARY_DIR}/BreezeConfigVersion.cmake"
-          DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
-          COMPONENT Devel
-         )
+  #install(FILES  "${CMAKE_CURRENT_BINARY_DIR}/BreezeConfig.cmake"
+  #               "${CMAKE_CURRENT_BINARY_DIR}/BreezeConfigVersion.cmake"
+  #        DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
+  #        COMPONENT Devel
+  #       )
 endif()
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)

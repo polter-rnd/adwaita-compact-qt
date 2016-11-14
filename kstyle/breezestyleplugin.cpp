@@ -33,7 +33,7 @@ namespace Breeze
     //_________________________________________________
     QStyle* StylePlugin::create( const QString &key )
     {
-        if( key.toLower() == QStringLiteral( "breeze" ) )
+        if( key.toLower() == QStringLiteral( "adwaita" ) )
         {
             return new Style;
         }
@@ -47,6 +47,6 @@ namespace Breeze
 
     //_________________________________________________
     QStringList StylePlugin::keys() const
-    { return QStringList( QStringLiteral( "Breeze" ) ); }
+    { return QStringList( QStringLiteral( "Adwaita" ) ); }
 
 }
