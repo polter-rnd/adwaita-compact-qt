@@ -66,7 +66,7 @@ namespace Adwaita
 
         // frames
         Frame_FrameWidth = 4,
-        Frame_FrameRadius = 4,
+        Frame_FrameRadius = 3,
 
         // layout
         Layout_TopLevelMarginWidth = 10,
@@ -74,17 +74,17 @@ namespace Adwaita
         Layout_DefaultSpacing = 6,
 
         // line editors
-        LineEdit_FrameWidth = 7,
+        LineEdit_FrameWidth = 5,
 
         // menu items
         Menu_FrameWidth = 0,
-        MenuItem_MarginWidth = 5,
+        MenuItem_MarginWidth = 2,
         MenuItem_ItemSpacing = 4,
         MenuItem_AcceleratorSpace = 16,
         MenuButton_IndicatorWidth = 20,
 
         // combobox
-        ComboBox_FrameWidth = 7,
+        ComboBox_FrameWidth = 5,
 
         // spinbox
         SpinBox_FrameWidth = LineEdit_FrameWidth,
@@ -95,7 +95,7 @@ namespace Adwaita
 
         // buttons
         Button_MinWidth = 80,
-        Button_MarginWidth = 4,
+        Button_MarginWidth = 2,
         Button_ItemSpacing = 3,
 
         // tool buttons
@@ -143,10 +143,10 @@ namespace Adwaita
         Slider_ControlThickness = 24,
 
         // tabbar
-        TabBar_TabMarginHeight = 9,
+        TabBar_TabMarginHeight = 4,
         TabBar_TabMarginWidth = 8,
-        TabBar_TabMinWidth = 80,
-        TabBar_TabMinHeight = 36,
+        TabBar_TabMinWidth = 26,
+        TabBar_TabMinHeight = 26,
         TabBar_TabItemSpacing = 8,
         TabBar_TabOverlap = 1,
         TabBar_BaseOverlap = 0,
