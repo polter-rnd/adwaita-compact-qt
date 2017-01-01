@@ -1,0 +1,5 @@
+[Misc]
+Name=Adwaita Compact
+Comment=Qt widget style for GNOME
+[KDE]
+WidgetStyle=Adwaita Compact
