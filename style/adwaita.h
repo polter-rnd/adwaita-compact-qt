@@ -113,8 +113,8 @@ namespace Adwaita
         MenuBarItem_MarginHeight = 4,
 
         // scrollbars
-        ScrollBar_Extend = 14,
-        ScrollBar_SliderWidth = 8,
+        ScrollBar_Extend = 12,
+        ScrollBar_SliderWidth = 7,
         ScrollBar_MinSliderHeight = 24,
         ScrollBar_NoButtonHeight = (ScrollBar_Extend-ScrollBar_SliderWidth)/2,
         ScrollBar_SingleButtonHeight = 0,
