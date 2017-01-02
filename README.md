@@ -1,11 +1,11 @@
-adwaita-qt
+adwaita-compact-qt
 ==========
 
-A native style to bend Qt4 and Qt5 applications to look like they belong into GNOME Shell.
+A native style to bend Qt4 and Qt5 applications to look like they belong into GNOME Shell with [https://github.com/polter-rnd/adwaita-compact](Adwaita Compact) theme.
 
-![Widget Factory](/screenshots/widgets.png)
+![Before](/screenshots/before.png)
 
-![KCalc](/screenshots/kcalc.png)
+![After](/screenshots/after.png)
 
 ## How to compile
 
