@@ -33,7 +33,7 @@ namespace Adwaita
     //_________________________________________________
     QStyle* StylePlugin::create( const QString &key )
     {
-        if( key.toLower() == QStringLiteral( "adwaita compact" ) )
+        if( key.toLower() == QStringLiteral( "adwaita-compact" ) )
         {
             return new Style;
         }
@@ -47,6 +47,6 @@ namespace Adwaita
 
     //_________________________________________________
     QStringList StylePlugin::keys() const
-    { return QStringList( QStringLiteral( "Adwaita Compact" ) ); }
+    { return QStringList( QStringLiteral( "Adwaita-compact" ) ); }
 
 }
