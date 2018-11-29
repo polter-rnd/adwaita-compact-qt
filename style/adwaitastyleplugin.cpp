@@ -24,7 +24,7 @@
 #include <QApplication>
 
 #if QT_VERSION < 0x050000
-Q_EXPORT_PLUGIN2( adwaita-compact-qt, Adwaita::StylePlugin )
+Q_EXPORT_PLUGIN2( adwaita-slim-qt, Adwaita::StylePlugin )
 #endif
 
 namespace Adwaita
@@ -33,11 +33,11 @@ namespace Adwaita
     //_________________________________________________
     QStyle* StylePlugin::create( const QString &key )
     {
-        if( key.toLower() == QStringLiteral( "adwaita-compact" ) )
+        if( key.toLower() == QStringLiteral( "adwaita-slim" ) )
         {
             return new Style(false);
         }
-        if ( key.toLower() == QStringLiteral( "adwaita-dark") )
+        if ( key.toLower() == QStringLiteral( "adwaita-slim-dark") )
         {
             return new Style(true);
         }
@@ -51,5 +51,5 @@ namespace Adwaita
 
     //_________________________________________________
     QStringList StylePlugin::keys() const
-    { return QStringList() << QStringLiteral( "Adwaita-Compact" ); }
+    { return QStringList() << QStringLiteral( "Adwaita-Slim" ) << QStringLiteral( "Adwaita-Slim-Dark" ); }
 }
