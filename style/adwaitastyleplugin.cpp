@@ -35,7 +35,11 @@ namespace Adwaita
     {
         if( key.toLower() == QStringLiteral( "adwaita-compact" ) )
         {
-            return new Style;
+            return new Style(false);
+        }
+        if ( key.toLower() == QStringLiteral( "adwaita-dark") )
+        {
+            return new Style(true);
         }
         return nullptr;
     }
@@ -47,6 +51,5 @@ namespace Adwaita
 
     //_________________________________________________
     QStringList StylePlugin::keys() const
-    { return QStringList( QStringLiteral( "Adwaita-compact" ) ); }
-
+    return QStringList() << QStringLiteral( "Adwaita-Compact" ); }
 }

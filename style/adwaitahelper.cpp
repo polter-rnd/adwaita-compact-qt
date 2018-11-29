@@ -24,6 +24,7 @@
 
 #include <QApplication>
 #include <QPainter>
+#include <QLibrary>
 
 #if ADWAITA_HAVE_X11 && QT_VERSION < 0x050000
 #include <X11/Xlib-xcb.h>
@@ -46,41 +47,25 @@ namespace Adwaita
     #endif
 
     //____________________________________________________________________
-    void Helper::loadConfig()
-    {
-
-        QPalette palette( QApplication::palette() );
-        // ADWAITA TODO
-        /*
-        KConfigGroup group( _config->group( "WM" ) );
-        _activeTitleBarColor = group.readEntry( "activeBackground", palette.color( QPalette::Active, QPalette::Highlight ) );
-        _activeTitleBarTextColor = group.readEntry( "activeForeground", palette.color( QPalette::Active, QPalette::HighlightedText ) );
-        _inactiveTitleBarColor = group.readEntry( "inactiveBackground", palette.color( QPalette::Disabled, QPalette::Highlight ) );
-        _inactiveTitleBarTextColor = group.readEntry( "inactiveForeground", palette.color( QPalette::Disabled, QPalette::HighlightedText ) );
-        */
-
-        _activeTitleBarColor = Qt::red;
-        _activeTitleBarTextColor = Qt::red;
-        _inactiveTitleBarColor = Qt::red;
-        _inactiveTitleBarTextColor = Qt::red;
-
-    }
-
-    //____________________________________________________________________
     QColor Helper::frameOutlineColor( const QPalette& palette, bool mouseOver, bool hasFocus, qreal opacity, AnimationMode mode ) const
     {
 
-        QColor outline( mix( palette.color( QPalette::Window ), palette.color( QPalette::WindowText ), 0.25 ) );
+        // I really can't remember why we have differed these two cases. This seems right.
+        return inputOutlineColor(palette, mouseOver, hasFocus, opacity, mode);
+
+    }
+
+    QColor Helper::inputOutlineColor(const QPalette &palette, bool mouseOver, bool hasFocus, qreal opacity, AnimationMode mode) const
+    {
+        QColor outline( buttonOutlineColor( palette, mouseOver, false ) );
+        QColor focus( palette.color( QPalette::Active, QPalette::Highlight ) );
+
 
         // focus takes precedence over hover
         if( mode == AnimationFocus )
         {
 
-            QColor focus( focusColor( palette ) );
-            QColor hover( hoverColor( palette ) );
-
-            if( mouseOver ) outline = mix( hover, focus, opacity );
-            else outline = mix( outline, focus, opacity );
+            outline = mix( outline, focus, opacity );
 
         } else if( hasFocus ) {
 
@@ -89,7 +74,6 @@ namespace Adwaita
         }
 
         return outline;
-
     }
 
     //____________________________________________________________________
@@ -163,7 +147,7 @@ namespace Adwaita
     QColor Helper::buttonOutlineColor( const QPalette& palette, bool mouseOver, bool hasFocus, qreal opacity, AnimationMode mode ) const
     {
 
-        QColor outline( mix( palette.color( QPalette::Button ), palette.color( QPalette::ButtonText ), 0.3 ) );
+        QColor outline( mix( palette.color( QPalette::Button ), palette.color( QPalette::Shadow ), 0.3 ) );
 
         return outline;
 
@@ -198,7 +182,9 @@ namespace Adwaita
     QColor Helper::toolButtonColor( const QPalette& palette, bool mouseOver, bool hasFocus, bool sunken, qreal opacity, AnimationMode mode ) const
     {
 
-        return buttonBackgroundColor(palette, mouseOver, hasFocus, sunken, opacity, mode);
+        if (sunken || (mode != AnimationNone && mode != AnimationHover) )
+            return buttonBackgroundColor(palette, mouseOver, hasFocus, sunken, opacity, mode);
+        return Qt::transparent;
 
     }
 
@@ -206,7 +192,7 @@ namespace Adwaita
     QColor Helper::sliderOutlineColor( const QPalette& palette, bool mouseOver, bool hasFocus, qreal opacity, AnimationMode mode ) const
     {
 
-        QColor outline( mix( palette.color( QPalette::Window ), palette.color( QPalette::WindowText ), 0.4 ) );
+        QColor outline( mix( palette.color( QPalette::Window ), palette.color( QPalette::Shadow ), 0.5 ) );
 
         // hover takes precedence over focus
         if( mode == AnimationHover )
@@ -285,6 +271,33 @@ namespace Adwaita
     //______________________________________________________________________________
     QColor Helper::separatorColor( const QPalette& palette ) const
     { return mix( palette.color( QPalette::Window ), palette.color( QPalette::WindowText ), 0.25 ); }
+
+    //____________________________________________________________________
+    QColor Helper::headerTextColor( const QPalette& palette, const QStyle::State state ) const
+    {
+        QColor col(palette.color(QPalette::WindowText));
+
+        if (state & QStyle::State_Enabled)
+        {
+             if (state & QStyle::State_Sunken)
+                return alphaColor( col, 0.9 );
+             else if (state & QStyle::State_MouseOver)
+                return alphaColor( col, 0.7 );
+        }
+        return alphaColor( col, 0.5 );
+    }
+
+    QColor Helper::tabBarColor(const QPalette &palette, const QStyle::State state) const
+    {
+
+        QColor background( mix(palette.window().color(), palette.shadow().color(), 0.15) );
+        if (!(state & QStyle::State_Enabled))
+            background = background.lighter(115);
+        if (!(state & QStyle::State_Active))
+            background = background.lighter(115);
+        return background;
+
+    }
 
     //______________________________________________________________________________
     QPalette Helper::disabledPalette( const QPalette& source, qreal ratio ) const
@@ -416,6 +429,20 @@ namespace Adwaita
     }
 
     //______________________________________________________________________________
+    void Helper::renderSquareFrame(
+        QPainter* painter, const QRect& rect,
+        QColor color, bool hasFocus ) const
+    {
+        painter->setPen( color );
+        painter->drawRect( rect.adjusted(1, 1, -2, -2) );
+        if (hasFocus) {
+            color.setAlphaF( 0.5 );
+            painter->setPen( color );
+            painter->drawRect( rect.adjusted(0, 0, -1, -1) );
+        }
+    }
+
+    //______________________________________________________________________________
     void Helper::renderFlatFrame(
         QPainter* painter, const QRect& rect,
         const QColor& color, const QColor& outline, bool hasFocus ) const
@@ -452,8 +479,9 @@ namespace Adwaita
 
         QPainterPath path;
         path.setFillRule( Qt::WindingFill );
-        path.addRoundedRect( frameRect.adjusted(0, 0, - 2 *radius, 0), radius, radius);
         path.addRect( frameRect.adjusted(2 * radius, 0, 0, 0) );
+        path.addRoundedRect( frameRect.adjusted(0, 0, - 2 *radius, 0), radius, radius);
+
         painter->drawPath( path.simplified() );
 
         // render
@@ -541,7 +569,7 @@ namespace Adwaita
     void Helper::renderButtonFrame(
         QPainter* painter, const QRect& rect,
         const QColor& color, const QColor& outline, const QColor& shadow,
-        bool hasFocus, bool sunken, bool mouseOver ) const
+        bool hasFocus, bool sunken, bool mouseOver, bool active ) const
     {
 
         // setup painter
@@ -569,12 +597,15 @@ namespace Adwaita
             QLinearGradient gradient( frameRect.topLeft(), frameRect.bottomLeft() );
             //gradient.setColorAt( 0, color.darker( sunken ? 110 : (hasFocus|mouseOver) ? 85 : 100 ) );
             //gradient.setColorAt( 1, color.darker( sunken ? 130 : (hasFocus|mouseOver) ? 95 : 110 ) );
-            if (sunken) {
-                gradient.setColorAt( 0, color);
+            if (!active) {
+                gradient.setColorAt( 0, color );
+            }
+            else if (sunken) {
+                gradient.setColorAt( 0, color );
             }
             else {
-                gradient.setColorAt( 0, color.lighter( 100 ) );
-                gradient.setColorAt( 1, color.darker( 110 ) );
+                gradient.setColorAt( 0, mix(color, Qt::white, 0.07) );
+                gradient.setColorAt( 1, mix(color, Qt::black, 0.1) );
             }
             painter->setBrush( gradient );
 
@@ -583,13 +614,20 @@ namespace Adwaita
         // render
         painter->drawRoundedRect( frameRect, radius, radius );
 
+        if (!sunken && active && color.isValid()) {
+            painter->setPen(color.lighter(140));
+            painter->drawLine(frameRect.topLeft() + QPoint(3, 1), frameRect.topRight() + QPoint(-3, 1));
+            painter->setPen(outline.darker(114));
+            painter->drawLine(frameRect.bottomLeft() + QPointF(2.7, 0), frameRect.bottomRight() + QPointF(-2.7, 0));
+        }
+
     }
 
     //______________________________________________________________________________
     void Helper::renderFlatButtonFrame(
         QPainter* painter, const QRect& rect,
         const QColor& color, const QColor& outline, const QColor& shadow,
-        bool hasFocus, bool sunken, bool mouseOver ) const
+        bool hasFocus, bool sunken, bool mouseOver, bool active ) const
     {
 
         // setup painter
@@ -617,12 +655,16 @@ namespace Adwaita
             QLinearGradient gradient( frameRect.topLeft(), frameRect.bottomLeft() );
             //gradient.setColorAt( 0, color.darker( sunken ? 110 : (hasFocus|mouseOver) ? 85 : 100 ) );
             //gradient.setColorAt( 1, color.darker( sunken ? 130 : (hasFocus|mouseOver) ? 95 : 110 ) );
-            if (sunken) {
+
+            if (!active) {
+                gradient.setColorAt( 0, color );
+            }
+            else if (sunken) {
                 gradient.setColorAt( 0, color);
             }
             else {
-                gradient.setColorAt( 0, color.lighter( 100 ) );
-                gradient.setColorAt( 1, color.darker( 110 ) );
+                gradient.setColorAt( 0, mix(color, Qt::white, 0.07) );
+                gradient.setColorAt( 1, mix(color, Qt::black, 0.1) );
             }
             painter->setBrush( gradient );
 
@@ -633,6 +675,13 @@ namespace Adwaita
         path.addRoundedRect( frameRect.adjusted(2*radius, 0, 0, 0), radius, radius );
         path.addRect( frameRect.adjusted(0, 0, -2*radius, 0) );
         painter->drawPath( path.simplified() );
+
+        if (!sunken && active) {
+            painter->setPen(color.lighter(140));
+            painter->drawLine(frameRect.topLeft() + QPoint(1, 1), frameRect.topRight() + QPoint(-3, 1));
+            painter->setPen(outline.darker(114));
+            painter->drawLine(frameRect.bottomLeft() + QPointF(0.7, 0), frameRect.bottomRight() + QPointF(-2.7, 0));
+        }
 
         // render
         //painter->drawRoundedRect( frameRect, radius, radius );
@@ -822,7 +871,7 @@ namespace Adwaita
     void Helper::renderCheckBox(
         QPainter* painter, const QRect& rect,
         const QColor& background, const QColor& outline, const QColor& tickColor,
-        bool sunken, CheckBoxState state, qreal animation ) const
+        bool sunken, CheckBoxState state, qreal animation, bool active ) const
     {
 
         // setup painter
@@ -837,7 +886,7 @@ namespace Adwaita
         // content
         {
 
-            renderButtonFrame(painter, rect, background, outline, Qt::transparent, false, sunken, false);
+            renderButtonFrame(painter, rect, background, outline, Qt::transparent, false, sunken, false, active);
 
         }
 
@@ -922,7 +971,7 @@ namespace Adwaita
     void Helper::renderRadioButton(
         QPainter* painter, const QRect& rect,
         const QColor& background, const QColor& outline, const QColor& tickColor,
-        bool sunken, RadioButtonState state, qreal animation ) const
+        bool sunken, bool enabled, RadioButtonState state, qreal animation ) const
     {
 
         // setup painter
@@ -935,18 +984,26 @@ namespace Adwaita
         // content
         {
 
-
-            QLinearGradient gradient( frameRect.topLeft(), frameRect.bottomLeft() );
-            if (sunken) {
-                gradient.setColorAt( 0, background);
-            }
-            else {
-                gradient.setColorAt( 0, background.lighter( 100 ) );
-                gradient.setColorAt( 1, background.darker( 110 ) );
+            if (background.isValid()) {
+                if (enabled) {
+                    QLinearGradient gradient( frameRect.topLeft(), frameRect.bottomLeft() );
+                    if (sunken) {
+                        gradient.setColorAt( 0, background);
+                    }
+                    else {
+                        gradient.setColorAt( 0, mix(background, Qt::white, 0.07) );
+                        gradient.setColorAt( 1, mix(background, Qt::black, 0.1) );
+                    }
+                    painter->setBrush( gradient );
+                }
+                else {
+                    painter->setBrush( background );
+                }
+            } else {
+                painter->setBrush( Qt::NoBrush );
             }
 
             painter->setPen( QPen( outline, 1 ) );
-            painter->setBrush( gradient );
 
             QRectF contentRect( frameRect.adjusted( 0.5, 0.5, -0.5, -0.5 ) );
             painter->drawEllipse( contentRect );
@@ -1073,7 +1130,9 @@ namespace Adwaita
         const QColor& outline,
         const QColor& shadow,
         bool sunken,
-        Side ticks ) const
+        bool enabled,
+        Side ticks,
+        qreal angle) const
     {
 
         // setup painter
@@ -1099,16 +1158,21 @@ namespace Adwaita
         // set brush
         if( color.isValid() ) {
 
-            QLinearGradient gradient( frameRect.topLeft(), frameRect.bottomLeft() );
-            if (sunken) {
-                gradient.setColorAt( 0, color);
+            if (enabled) {
+                QLinearGradient gradient( frameRect.topLeft(), frameRect.bottomLeft() );
+                if (sunken) {
+                    gradient.setColorAt( 0, color);
+                }
+                else {
+                    gradient.setColorAt( 0, mix(color, Qt::white, 0.07) );
+                    gradient.setColorAt( 1, mix(color, Qt::black, 0.1) );
+                }
+                painter->setBrush(gradient);
             }
             else {
-                gradient.setColorAt( 0, color.lighter( 100 ) );
-                gradient.setColorAt( 1, color.darker( 110 ) );
+                painter->setBrush(color);
             }
 
-            painter->setBrush(gradient);
         }
         else painter->setBrush( Qt::NoBrush );
 
@@ -1152,7 +1216,11 @@ namespace Adwaita
             circle = circle.united(triangle);
         }
 
-        painter->drawPath(circle);
+        QTransform rotate;
+        rotate.translate(frameRect.center().x(), frameRect.center().y());
+        rotate.rotate(angle);
+        rotate.translate(-frameRect.center().x(), -frameRect.center().y());
+        painter->drawPolygon(circle.toFillPolygon(rotate));
 
     }
 
@@ -1242,7 +1310,7 @@ namespace Adwaita
     }
 
     //______________________________________________________________________________
-    void Helper::renderTabBarTab( QPainter* painter, const QRect& rect, const QColor& color, const QColor& outline, Corners corners, bool renderFrame ) const
+    void Helper::renderTabBarTab( QPainter* painter, const QRect& rect, const QColor& background, const QColor& color, const QColor& outline, Corners corners, bool renderFrame ) const
     {
 
         // setup painter
@@ -1256,10 +1324,10 @@ namespace Adwaita
         {
 
             painter->setPen( outline );
-            frameRect.adjust( 0.5, 0.5, -0.5, -0.5 );
+            frameRect.adjust( 1.0, 1.0, -1.0, -1.0 );
             adjustment = 0;
 
-            painter->setBrush( Qt::NoBrush );
+            painter->setBrush( background );
 
             // render
             painter->drawRect( frameRect );
@@ -1271,22 +1339,22 @@ namespace Adwaita
         painter->setPen( QPen( color, 6 ) );
 
         switch (corners) {
-            case CornerTopLeft|CornerTopRight:
+            case CornersTop:
                 painter->drawLine(frameRect.left() + adjustment, frameRect.bottom(), frameRect.right() - adjustment, frameRect.bottom());
                 break;
 
-            case CornerBottomLeft|CornerBottomRight:
+            case CornersBottom:
                 painter->drawLine(frameRect.left() + adjustment, frameRect.top(), frameRect.right() - adjustment, frameRect.top());
                 break;
 
-            case CornerTopLeft|CornerBottomLeft:
+            case CornersLeft:
                 painter->drawLine(frameRect.right(), frameRect.top() + adjustment, frameRect.right(), frameRect.bottom() - adjustment);
                 break;
 
-            case CornerTopRight|CornerBottomRight:
+            case CornersRight:
                 painter->drawLine(frameRect.left(), frameRect.top() + adjustment, frameRect.left(), frameRect.bottom() - adjustment);
                 break;
-    
+
         }
 
 
@@ -1407,17 +1475,12 @@ namespace Adwaita
     //______________________________________________________________________________
     bool Helper::isX11( void )
     {
-        #if ADWAITA_HAVE_X11
         #if QT_VERSION >= 0x050000
-        static const bool s_isX11 = QX11Info::isPlatformX11();
+        static const bool s_isX11 = qApp->platformName()==QLatin1String("xcb");
         return s_isX11;
         #else
-        return true;
-        #endif
-        #endif
-
         return false;
-
+        #endif
     }
 
     bool Helper::isWayland( void )
@@ -1599,6 +1662,87 @@ namespace Adwaita
 
         #endif
 
+    }
+
+    //____________________________________________________________________
+    void Helper::setVariant(QWidget *widget, const QByteArray &variant)
+    {
+        if (isX11() && widget) { //  && !widget->testAttribute(Qt::WA_)) {
+            static const char *_GTK_THEME_VARIANT="_GTK_THEME_VARIANT";
+
+            // Check if already set
+            QVariant var=widget->property("_GTK_THEME_VARIANT");
+            if (var.isValid() && var.toByteArray()==variant) {
+                return;
+            }
+
+            // Typedef's from xcb/xcb.h - copied so that there is no
+            // direct xcb dependency
+            typedef quint32 XcbAtom;
+
+            struct XcbInternAtomCookie {
+                unsigned int sequence;
+            };
+
+            struct XcbInternAtomReply {
+                quint8  response_type;
+                quint8  pad0;
+                quint16 sequence;
+                quint32 length;
+                XcbAtom atom;
+            };
+
+            typedef void * (*XcbConnectFn)(int, int);
+            typedef XcbInternAtomCookie (*XcbInternAtomFn)(void *, int, int, const char *);
+            typedef XcbInternAtomReply * (*XcbInternAtomReplyFn)(void *, XcbInternAtomCookie, int);
+            typedef int (*XcbChangePropertyFn)(void *, int, int, XcbAtom, XcbAtom, int, int, const void *);
+            typedef int (*XcbFlushFn)(void *);
+
+            static QLibrary *lib = 0;
+            static XcbAtom variantAtom = 0;
+            static XcbAtom utf8TypeAtom = 0;
+            static void *xcbConn = 0;
+            static XcbChangePropertyFn XcbChangePropertyFnPtr = 0;
+            static XcbFlushFn XcbFlushFnPtr = 0;
+
+            if (!lib) {
+                lib = new QLibrary("libxcb", qApp);
+
+                if (lib->load()) {
+                    XcbConnectFn XcbConnectFnPtr=(XcbConnectFn)lib->resolve("xcb_connect");
+                    XcbInternAtomFn XcbInternAtomFnPtr=(XcbInternAtomFn)lib->resolve("xcb_intern_atom");
+                    XcbInternAtomReplyFn XcbInternAtomReplyFnPtr=(XcbInternAtomReplyFn)lib->resolve("xcb_intern_atom_reply");
+
+                    XcbChangePropertyFnPtr=(XcbChangePropertyFn)lib->resolve("xcb_change_property");
+                    XcbFlushFnPtr=(XcbFlushFn)lib->resolve("xcb_flush");
+                    if (XcbConnectFnPtr && XcbInternAtomFnPtr && XcbInternAtomReplyFnPtr && XcbChangePropertyFnPtr && XcbFlushFnPtr) {
+                        xcbConn=(*XcbConnectFnPtr)(0, 0);
+                        if (xcbConn) {
+                            XcbInternAtomReply *typeReply = (*XcbInternAtomReplyFnPtr)(xcbConn, (*XcbInternAtomFnPtr)(xcbConn, 0, 11, "UTF8_STRING"), 0);
+
+                            if (typeReply) {
+                                XcbInternAtomReply *gtkVarReply = (*XcbInternAtomReplyFnPtr)(xcbConn,
+                                                                                             (*XcbInternAtomFnPtr)(xcbConn, 0, strlen(_GTK_THEME_VARIANT),
+                                                                                                                   _GTK_THEME_VARIANT), 0);
+                                if (gtkVarReply) {
+                                    utf8TypeAtom = typeReply->atom;
+                                    variantAtom = gtkVarReply->atom;
+                                    free(gtkVarReply);
+                                }
+                                free(typeReply);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (0!=variantAtom) {
+                (*XcbChangePropertyFnPtr)(xcbConn, 0, widget->effectiveWinId(), variantAtom, utf8TypeAtom, 8,
+                                          variant.length(), (const void *)variant.constData());
+                (*XcbFlushFnPtr)(xcbConn);
+                widget->setProperty(_GTK_THEME_VARIANT, variant);
+            }
+        }
     }
 
 }

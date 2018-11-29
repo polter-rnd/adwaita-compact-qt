@@ -76,7 +76,7 @@ namespace Adwaita
         public:
 
         //* constructor
-        explicit Style( void );
+        explicit Style( bool dark );
 
         //* destructor
         virtual ~Style( void );
@@ -176,13 +176,17 @@ namespace Adwaita
         { return option->rect; }
 
         QRect pushButtonContentsRect( const QStyleOption*, const QWidget* ) const;
+        QRect pushButtonFocusRect( const QStyleOption*, const QWidget* ) const;
         QRect checkBoxContentsRect( const QStyleOption*, const QWidget* ) const;
+        QRect checkBoxIndicatorRect( const QStyleOption*, const QWidget* ) const;
+        QRect checkBoxFocusRect( const QStyleOption*, const QWidget* ) const;
         QRect lineEditContentsRect( const QStyleOption*, const QWidget* ) const;
         QRect progressBarGrooveRect( const QStyleOption*, const QWidget* ) const;
         QRect progressBarContentsRect( const QStyleOption*, const QWidget* ) const;
         QRect progressBarLabelRect( const QStyleOption*, const QWidget* ) const;
         QRect headerArrowRect( const QStyleOption*, const QWidget* ) const;
         QRect headerLabelRect( const QStyleOption*, const QWidget* ) const;
+        QRect sliderFocusRect( const QStyleOption*, const QWidget* ) const;
         QRect tabBarTabLeftButtonRect( const QStyleOption*, const QWidget* ) const;
         QRect tabBarTabRightButtonRect( const QStyleOption*, const QWidget* ) const;
         QRect tabWidgetTabBarRect( const QStyleOption*, const QWidget* ) const;
@@ -517,6 +521,11 @@ namespace Adwaita
 
         //! styled painting for KCapacityBar
         QStyle::ControlElement CE_CapacityBar;
+
+        bool _dark { false };
+
+        bool _isGNOME { false };
+        bool _isKDE { false };
 
         //@}
 

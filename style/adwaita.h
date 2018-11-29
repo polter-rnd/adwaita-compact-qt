@@ -105,7 +105,7 @@ namespace Adwaita
 
         // checkboxes and radio buttons
         CheckBox_Size = 20,
-        CheckBox_FocusMarginWidth = 2,
+        CheckBox_FocusMarginWidth = 3,
         CheckBox_ItemSpacing = 4,
 
         // menubar items
@@ -137,8 +137,8 @@ namespace Adwaita
         TitleBar_MarginWidth = 4,
 
         // sliders
-        Slider_TickLength = 8,
-        Slider_TickMarginWidth = 2,
+        Slider_TickLength = 4,
+        Slider_TickMarginWidth = 6,
         Slider_GrooveThickness = 3,
         Slider_ControlThickness = 24,
 
@@ -161,6 +161,9 @@ namespace Adwaita
 
         // tooltips
         ToolTip_FrameWidth = 3,
+
+        // scroll areas
+        ScrollArea_FrameWidth = 2,
 
         // list headers
         Header_MarginWidth = 3,

@@ -12,14 +12,12 @@ Look how default Adwaita and Adwaita Compact differ: [before](/screenshots/befor
 
 The project uses the standard CMake buildsystem.
 
-It is advised to override the `LIB_SUFFIX` CMake variable to handle the `/usr/lib` vs `/usr/lib64` installation correctly.
-
-So for example, when packaging a 64bit package, the process would be similar to this:
+So for example, the whole compilation process could look like this:
 
 ```
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr -DLIB_SUFFIX=64 ..
+cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr ..
 make
 make install
 ```

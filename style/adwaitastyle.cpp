@@ -33,6 +33,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDial>
+#include <QDialog>
 #include <QDBusConnection>
 #include <QDockWidget>
 #include <QFormLayout>
@@ -43,6 +44,7 @@
 #include <QMdiSubWindow>
 #include <QMenu>
 #include <QPainter>
+#include <QProxyStyle>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollBar>
@@ -206,7 +208,7 @@ namespace Adwaita
 {
 
     //______________________________________________________________
-    Style::Style( void ):
+    Style::Style( bool dark ):
         _addLineButtons( SingleButton )
         , _subLineButtons( SingleButton )
 
@@ -227,6 +229,7 @@ namespace Adwaita
         , SH_ArgbDndWindow( newStyleHint( QStringLiteral( "SH_ArgbDndWindow" ) ) )
         , CE_CapacityBar( newControlElement( QStringLiteral( "CE_CapacityBar" ) ) )
         #endif
+        , _dark(dark)
     {
 
         // use DBus connection to update on adwaita configuration change
@@ -240,6 +243,11 @@ namespace Adwaita
             QStringLiteral( "/AdwaitaDecoration" ),
             QStringLiteral( "org.kde.Adwaita.Style" ),
             QStringLiteral( "reparseConfiguration" ), this, SLOT(configurationChanged()) );
+
+        // Detect if running under KDE, if so set menus, etc, to have translucent background.
+        // For GNOME desktop, dont want translucent backgrounds otherwise no menu shadow is drawn.
+        _isKDE = qgetenv("XDG_CURRENT_DESKTOP").toLower()=="kde";
+        _isGNOME = qgetenv("XDG_CURRENT_DESKTOP").toLower()=="gnome";
 
         // call the slot directly; this initial call will set up things that also
         // need to be reset when the system palette changes
@@ -279,6 +287,9 @@ namespace Adwaita
             || qobject_cast<QTabBar*>( widget )
             || qobject_cast<QTextEdit*>( widget )
             || qobject_cast<QToolButton*>( widget )
+            #if QT_VERSION >= 0x050000
+            || qobject_cast<QHeaderView*>( widget )
+            #endif
             || widget->inherits( "KTextEditor::View" )
             )
         { widget->setAttribute( Qt::WA_Hover ); }
@@ -402,6 +413,10 @@ namespace Adwaita
 
         }
 
+        if (!widget->parent() || !qobject_cast<QWidget *>(widget->parent()) || qobject_cast<QDialog *>(widget) || qobject_cast<QMainWindow *>(widget)) {
+            addEventFilter( widget );
+        }
+
         // base class polishing
         ParentStyleClass::polish( widget );
 
@@ -489,7 +504,9 @@ namespace Adwaita
         if( qobject_cast<QAbstractScrollArea*>( widget ) ||
             qobject_cast<QDockWidget*>( widget ) ||
             qobject_cast<QMdiSubWindow*>( widget ) ||
-            widget->inherits( "QComboBoxPrivateContainer" ) )
+            widget->inherits( "QComboBoxPrivateContainer" ) ||
+            qobject_cast<QDialog *>(widget) ||
+            qobject_cast<QMainWindow *>(widget))
             { widget->removeEventFilter( this ); }
 
         ParentStyleClass::unpolish( widget );
@@ -499,79 +516,142 @@ namespace Adwaita
     void Style::polish(QPalette &palette)
     {
 
-        // All, used especially for active elements in a focused window
-        palette.setColor(QPalette::All,      QPalette::Window,          QColor("#ededed"));
-        palette.setColor(QPalette::All,      QPalette::WindowText,      QColor("#2e3436"));
-        palette.setColor(QPalette::All,      QPalette::Base,            QColor("white"));
-        palette.setColor(QPalette::All,      QPalette::AlternateBase,   QColor("#ededed"));
-        palette.setColor(QPalette::All,      QPalette::ToolTipBase,     QColor("#060606"));
-        palette.setColor(QPalette::All,      QPalette::ToolTipText,     QColor("white"));
-        palette.setColor(QPalette::All,      QPalette::Text,            QColor("#2e3436"));
-        palette.setColor(QPalette::All,      QPalette::Button,          QColor("#eeeeee"));
-        palette.setColor(QPalette::All,      QPalette::ButtonText,      QColor("#2e3436"));
-        palette.setColor(QPalette::All,      QPalette::BrightText,      QColor("white"));
+        if (_dark) {
+            palette.setColor(QPalette::All,      QPalette::Window,          QColor("#33393b"));
+            palette.setColor(QPalette::All,      QPalette::WindowText,      QColor("white"));
+            palette.setColor(QPalette::All,      QPalette::Base,            QColor("#232729"));
+            palette.setColor(QPalette::All,      QPalette::AlternateBase,   QColor("#1c1f20"));
+            palette.setColor(QPalette::All,      QPalette::ToolTipBase,     QColor("#1c1f20"));
+            palette.setColor(QPalette::All,      QPalette::ToolTipText,     QColor("white"));
+            palette.setColor(QPalette::All,      QPalette::Text,            QColor("white"));
+            palette.setColor(QPalette::All,      QPalette::Button,          QColor("#25292b"));
+            palette.setColor(QPalette::All,      QPalette::ButtonText,      QColor("white"));
+            palette.setColor(QPalette::All,      QPalette::BrightText,      QColor("black"));
 
-        palette.setColor(QPalette::All,      QPalette::Light,           QColor("#fafafa"));
-        palette.setColor(QPalette::All,      QPalette::Midlight,        QColor("#f3f3f3"));
-        palette.setColor(QPalette::All,      QPalette::Dark,            QColor("#e0e0e0"));
-        palette.setColor(QPalette::All,      QPalette::Mid,             QColor("#b4b4b4"));
-        palette.setColor(QPalette::All,      QPalette::Shadow,          QColor("black"));
+            palette.setColor(QPalette::All,      QPalette::Light,           QColor("white"));
+            palette.setColor(QPalette::All,      QPalette::Midlight,        QColor("#d7d7d7"));
+            palette.setColor(QPalette::All,      QPalette::Mid,             QColor("#b4b4b4"));
+            palette.setColor(QPalette::All,      QPalette::Dark,            QColor("#1a1a1a"));
+            palette.setColor(QPalette::All,      QPalette::Shadow,          QColor("black"));
 
-        palette.setColor(QPalette::All,      QPalette::Highlight,       QColor("#4a90d9"));
-        palette.setColor(QPalette::All,      QPalette::HighlightedText, QColor("white"));
+            palette.setColor(QPalette::All,      QPalette::Highlight,       QColor("#4a90d9"));
+            palette.setColor(QPalette::All,      QPalette::HighlightedText, QColor("white"));
 
-        palette.setColor(QPalette::All,      QPalette::Link,            QColor("#2a76c6"));
-        palette.setColor(QPalette::All,      QPalette::LinkVisited,     QColor("#2a76c6"));
-
-        // Exceptions for disabled elements in a focused window
-        palette.setColor(QPalette::Disabled, QPalette::Window,          QColor("#f4f4f4"));
-        palette.setColor(QPalette::Disabled, QPalette::WindowText,      QColor("#8d9091"));
-        palette.setColor(QPalette::Disabled, QPalette::Base,            QColor("white"));
-        palette.setColor(QPalette::Disabled, QPalette::AlternateBase,   QColor("#ededed"));
-    //     palette.setColor(QPalette::Disabled, QPalette::ToolTipBase,     QColor("#ff1234"));
-    //     palette.setColor(QPalette::Disabled, QPalette::ToolTipText,     QColor("#ff1234"));
-        palette.setColor(QPalette::Disabled, QPalette::Text,            QColor("#8d9091"));
-        palette.setColor(QPalette::Disabled, QPalette::Button,          QColor("#f4f4f4"));
-        palette.setColor(QPalette::Disabled, QPalette::ButtonText,      QColor("#8d9091"));
-        palette.setColor(QPalette::Disabled, QPalette::BrightText,      QColor("#ededed"));
-
-        palette.setColor(QPalette::Disabled, QPalette::Light,           QColor("#f4f4f4"));
-        palette.setColor(QPalette::Disabled, QPalette::Midlight,        QColor("#f4f4f4"));
-        palette.setColor(QPalette::Disabled, QPalette::Dark,            QColor("#f4f4f4"));
-        palette.setColor(QPalette::Disabled, QPalette::Mid,             QColor("#c3c3c3"));
-        palette.setColor(QPalette::Disabled, QPalette::Shadow,          QColor("black"));
-
-        palette.setColor(QPalette::Disabled, QPalette::Highlight,       QColor("#4a90d9"));
-        palette.setColor(QPalette::Disabled, QPalette::HighlightedText, QColor("white"));
-
-        palette.setColor(QPalette::Disabled, QPalette::Link,            QColor("#4a90d9"));
-        palette.setColor(QPalette::Disabled, QPalette::LinkVisited,     QColor("#4a90d9"));
+            palette.setColor(QPalette::All,      QPalette::Link,            QColor("#2a76c6"));
+            palette.setColor(QPalette::All,      QPalette::LinkVisited,     QColor("#2a76c6"));
 
 
-        // Exceptions for an unfocused window
-        palette.setColor(QPalette::Inactive, QPalette::Window,          QColor("#ededed"));
-        palette.setColor(QPalette::Inactive, QPalette::WindowText,      QColor("#54595a"));
-        palette.setColor(QPalette::Inactive, QPalette::Base,            QColor("#fcfcfc"));
-        palette.setColor(QPalette::Inactive, QPalette::AlternateBase,   QColor("#ededed"));
-    //     palette.setColor(QPalette::Inactive, QPalette::ToolTipBase,     QColor("#ff1234"));
-    //     palette.setColor(QPalette::Inactive, QPalette::ToolTipText,     QColor("#ff1234"));
-        palette.setColor(QPalette::Inactive, QPalette::Text,            QColor("#54595a"));
-        palette.setColor(QPalette::Inactive, QPalette::Button,          QColor("#ededed"));
-        palette.setColor(QPalette::Inactive, QPalette::ButtonText,      QColor("#54595a"));
-        palette.setColor(QPalette::Inactive, QPalette::BrightText,      QColor("#ededed"));
+            palette.setColor(QPalette::Disabled, QPalette::Window,          QColor("#2e3436"));
+            palette.setColor(QPalette::Disabled, QPalette::WindowText,      QColor("#8d9091"));
+            palette.setColor(QPalette::Disabled, QPalette::Base,            QColor("#3d4244"));
+            palette.setColor(QPalette::Disabled, QPalette::AlternateBase,   QColor("#3a3d3e"));
+            palette.setColor(QPalette::Disabled, QPalette::Text,            QColor("#8d9091"));
+            palette.setColor(QPalette::Disabled, QPalette::Button,          QColor("#33393b"));
+            palette.setColor(QPalette::Disabled, QPalette::ButtonText,      QColor("#8d9091"));
+            palette.setColor(QPalette::Disabled, QPalette::BrightText,      QColor("#ededed"));
 
-        palette.setColor(QPalette::Inactive, QPalette::Light,           QColor("#ededed"));
-        palette.setColor(QPalette::Inactive, QPalette::Midlight,        QColor("#ededed"));
-        palette.setColor(QPalette::Inactive, QPalette::Dark,            QColor("#ededed"));
-        palette.setColor(QPalette::Inactive, QPalette::Mid,             QColor("#c3c3c3"));
-        palette.setColor(QPalette::Inactive, QPalette::Shadow,          QColor("black"));
+            palette.setColor(QPalette::Disabled, QPalette::Light,           QColor("#f4f4f4"));
+            palette.setColor(QPalette::Disabled, QPalette::Midlight,        QColor("#f4f4f4"));
+            palette.setColor(QPalette::Disabled, QPalette::Dark,            QColor("#f4f4f4"));
+            palette.setColor(QPalette::Disabled, QPalette::Mid,             QColor("#c3c3c3"));
+            palette.setColor(QPalette::Disabled, QPalette::Shadow,          QColor("black"));
 
-        palette.setColor(QPalette::Inactive, QPalette::Highlight,       QColor("#4a90d9"));
-        palette.setColor(QPalette::Inactive, QPalette::HighlightedText, QColor("white"));
+            palette.setColor(QPalette::Disabled, QPalette::Highlight,       QColor("#4a90d9"));
+            palette.setColor(QPalette::Disabled, QPalette::HighlightedText, QColor("white"));
 
-        palette.setColor(QPalette::Inactive, QPalette::Link,            QColor("#4a90d9"));
-        palette.setColor(QPalette::Inactive, QPalette::LinkVisited,     QColor("#4a90d9"));
+            palette.setColor(QPalette::Disabled, QPalette::Link,            QColor("#4a90d9"));
+            palette.setColor(QPalette::Disabled, QPalette::LinkVisited,     QColor("#4a90d9"));
 
+
+            palette.setColor(QPalette::Inactive, QPalette::Window,          QColor("#33393b"));
+            palette.setColor(QPalette::Inactive, QPalette::WindowText,      QColor("#d3d4d5"));
+            palette.setColor(QPalette::Inactive, QPalette::Base,            QColor("#252a2c"));
+            palette.setColor(QPalette::Inactive, QPalette::AlternateBase,   QColor("#1d2021"));
+            palette.setColor(QPalette::Inactive, QPalette::Text,            QColor("#d3d4d5"));
+            palette.setColor(QPalette::Inactive, QPalette::Button,          QColor("#33393b"));
+            palette.setColor(QPalette::Inactive, QPalette::ButtonText,      QColor("#eeeeec"));
+            palette.setColor(QPalette::Inactive, QPalette::BrightText,      QColor("#d3d4d5"));
+
+            palette.setColor(QPalette::Inactive, QPalette::Light,           QColor("white"));
+            palette.setColor(QPalette::Inactive, QPalette::Midlight,        QColor("#d7d7d7"));
+            palette.setColor(QPalette::Inactive, QPalette::Mid,             QColor("#b4b4b4"));
+            palette.setColor(QPalette::Inactive, QPalette::Dark,            QColor("#33393b"));
+            palette.setColor(QPalette::Inactive, QPalette::Shadow,          QColor("black"));
+
+            palette.setColor(QPalette::Inactive, QPalette::Highlight,       QColor("#4a90d9"));
+            palette.setColor(QPalette::Inactive, QPalette::HighlightedText, QColor("white"));
+
+            palette.setColor(QPalette::Inactive, QPalette::Link,            QColor("#4a90d9"));
+            palette.setColor(QPalette::Inactive, QPalette::LinkVisited,     QColor("#4a90d9"));
+        }
+        else {
+            palette.setColor(QPalette::All,      QPalette::Window,          QColor("#ededed"));
+            palette.setColor(QPalette::All,      QPalette::WindowText,      QColor("#2e3436"));
+            palette.setColor(QPalette::All,      QPalette::Base,            QColor("white"));
+            palette.setColor(QPalette::All,      QPalette::AlternateBase,   QColor("#ededed"));
+            palette.setColor(QPalette::All,      QPalette::ToolTipBase,     QColor("#060606"));
+            palette.setColor(QPalette::All,      QPalette::ToolTipText,     QColor("white"));
+            palette.setColor(QPalette::All,      QPalette::Text,            QColor("#2e3436"));
+            palette.setColor(QPalette::All,      QPalette::Button,          QColor("#eeeeee"));
+            palette.setColor(QPalette::All,      QPalette::ButtonText,      QColor("#2e3436"));
+            palette.setColor(QPalette::All,      QPalette::BrightText,      QColor("white"));
+
+            palette.setColor(QPalette::All,      QPalette::Light,           QColor("#fafafa"));
+            palette.setColor(QPalette::All,      QPalette::Midlight,        QColor("#f3f3f3"));
+            palette.setColor(QPalette::All,      QPalette::Dark,            QColor("#d3d3d3"));
+            palette.setColor(QPalette::All,      QPalette::Mid,             QColor("#b4b4b4"));
+            palette.setColor(QPalette::All,      QPalette::Shadow,          QColor("black"));
+
+            palette.setColor(QPalette::All,      QPalette::Highlight,       QColor("#4a90d9"));
+            palette.setColor(QPalette::All,      QPalette::HighlightedText, QColor("white"));
+
+            palette.setColor(QPalette::All,      QPalette::Link,            QColor("#2a76c6"));
+            palette.setColor(QPalette::All,      QPalette::LinkVisited,     QColor("#2a76c6"));
+
+
+            palette.setColor(QPalette::Disabled, QPalette::Window,          QColor("#f4f4f4"));
+            palette.setColor(QPalette::Disabled, QPalette::WindowText,      QColor("#8d9091"));
+            palette.setColor(QPalette::Disabled, QPalette::Base,            QColor("white"));
+            palette.setColor(QPalette::Disabled, QPalette::AlternateBase,   QColor("#ededed"));
+            palette.setColor(QPalette::Disabled, QPalette::Text,            QColor("#8d9091"));
+            palette.setColor(QPalette::Disabled, QPalette::Button,          QColor("#f4f4f4"));
+            palette.setColor(QPalette::Disabled, QPalette::ButtonText,      QColor("#8d9091"));
+            palette.setColor(QPalette::Disabled, QPalette::BrightText,      QColor("#ededed"));
+
+            palette.setColor(QPalette::Disabled, QPalette::Light,           QColor("#f4f4f4"));
+            palette.setColor(QPalette::Disabled, QPalette::Midlight,        QColor("#f4f4f4"));
+            palette.setColor(QPalette::Disabled, QPalette::Dark,            QColor("#f4f4f4"));
+            palette.setColor(QPalette::Disabled, QPalette::Mid,             QColor("#c3c3c3"));
+            palette.setColor(QPalette::Disabled, QPalette::Shadow,          QColor("black"));
+
+            palette.setColor(QPalette::Disabled, QPalette::Highlight,       QColor("#4a90d9"));
+            palette.setColor(QPalette::Disabled, QPalette::HighlightedText, QColor("white"));
+
+            palette.setColor(QPalette::Disabled, QPalette::Link,            QColor("#4a90d9"));
+            palette.setColor(QPalette::Disabled, QPalette::LinkVisited,     QColor("#4a90d9"));
+
+
+            palette.setColor(QPalette::Inactive, QPalette::Window,          QColor("#ededed"));
+            palette.setColor(QPalette::Inactive, QPalette::WindowText,      QColor("#54595a"));
+            palette.setColor(QPalette::Inactive, QPalette::Base,            QColor("#fcfcfc"));
+            palette.setColor(QPalette::Inactive, QPalette::AlternateBase,   QColor("#ededed"));
+            palette.setColor(QPalette::Inactive, QPalette::Text,            QColor("#54595a"));
+            palette.setColor(QPalette::Inactive, QPalette::Button,          QColor("#ededed"));
+            palette.setColor(QPalette::Inactive, QPalette::ButtonText,      QColor("#54595a"));
+            palette.setColor(QPalette::Inactive, QPalette::BrightText,      QColor("#ededed"));
+
+            palette.setColor(QPalette::Inactive, QPalette::Light,           QColor("#ededed"));
+            palette.setColor(QPalette::Inactive, QPalette::Midlight,        QColor("#ededed"));
+            palette.setColor(QPalette::Inactive, QPalette::Dark,            QColor("#ededed"));
+            palette.setColor(QPalette::Inactive, QPalette::Mid,             QColor("#c3c3c3"));
+            palette.setColor(QPalette::Inactive, QPalette::Shadow,          QColor("black"));
+
+            palette.setColor(QPalette::Inactive, QPalette::Highlight,       QColor("#4a90d9"));
+            palette.setColor(QPalette::Inactive, QPalette::HighlightedText, QColor("white"));
+
+            palette.setColor(QPalette::Inactive, QPalette::Link,            QColor("#4a90d9"));
+            palette.setColor(QPalette::Inactive, QPalette::LinkVisited,     QColor("#4a90d9"));
+        }
     }
 
     //______________________________________________________________
@@ -584,8 +664,10 @@ namespace Adwaita
 
             // frame width
             case PM_DefaultFrameWidth:
+            if ( widget && widget->inherits("QComboBoxPrivateContainer") ) return 1;
             if( qobject_cast<const QMenu*>( widget ) ) return Metrics::Menu_FrameWidth;
             if( qobject_cast<const QLineEdit*>( widget ) ) return Metrics::LineEdit_FrameWidth;
+            if( qobject_cast<const QAbstractScrollArea*>( widget ) ) return Metrics::ScrollArea_FrameWidth;
             #if QT_VERSION >= 0x050000
             else if( isQtQuickControl( option, widget ) )
             {
@@ -667,8 +749,8 @@ namespace Adwaita
 
             // menu buttons
             case PM_MenuButtonIndicator: return Metrics::MenuButton_IndicatorWidth;
-            case PM_MenuVMargin: return 3;
-            case PM_MenuHMargin: return 1;
+            case PM_MenuVMargin: return 2;
+            case PM_MenuHMargin: return _isGNOME ? 0 : 1;
 
             // toolbars
             case PM_ToolBarHandleExtent: return Metrics::ToolBar_HandleExtent;
@@ -779,7 +861,7 @@ namespace Adwaita
             case SH_Menu_SupportsSections: return true;
             #endif
 
-            case SH_DialogButtonBox_ButtonsHaveIcons: return true;
+            case SH_DialogButtonBox_ButtonsHaveIcons: return false;
 
             case SH_GroupBox_TextLabelVerticalAlignment: return Qt::AlignVCenter;
             case SH_TabBar_Alignment: return StyleConfigData::tabBarDrawCenteredTabs() ? Qt::AlignCenter:Qt::AlignLeft;
@@ -810,14 +892,20 @@ namespace Adwaita
         {
 
             case SE_PushButtonContents: return pushButtonContentsRect( option, widget );
+            case SE_PushButtonFocusRect: return pushButtonFocusRect( option, widget );
             case SE_CheckBoxContents: return checkBoxContentsRect( option, widget );
+            case SE_CheckBoxIndicator: return checkBoxIndicatorRect( option, widget );
+            case SE_CheckBoxFocusRect: return checkBoxFocusRect( option, widget );
             case SE_RadioButtonContents: return checkBoxContentsRect( option, widget );
+            case SE_RadioButtonIndicator: return checkBoxIndicatorRect( option, widget );
+            case SE_RadioButtonFocusRect: return checkBoxFocusRect( option, widget );
             case SE_LineEditContents: return lineEditContentsRect( option, widget );
             case SE_ProgressBarGroove: return progressBarGrooveRect( option, widget );
             case SE_ProgressBarContents: return progressBarContentsRect( option, widget );
             case SE_ProgressBarLabel: return progressBarLabelRect( option, widget );
             case SE_HeaderArrow: return headerArrowRect( option, widget );
             case SE_HeaderLabel: return headerLabelRect( option, widget );
+            case SE_SliderFocusRect: return sliderFocusRect( option, widget );
             case SE_TabBarTabLeftButton: return tabBarTabLeftButtonRect( option, widget );
             case SE_TabBarTabRightButton: return tabBarTabRightButtonRect( option, widget );
             case SE_TabWidgetTabBar: return tabWidgetTabBarRect( option, widget );
@@ -1132,6 +1220,11 @@ namespace Adwaita
         if( widget->inherits( "QAbstractScrollArea" ) || widget->inherits( "KTextEditor::View" ) ) { return eventFilterScrollArea( widget, event ); }
         else if( widget->inherits( "QComboBoxPrivateContainer" ) ) { return eventFilterComboBoxContainer( widget, event ); }
 
+        if ((!widget->parent() || !qobject_cast<QWidget *>(widget->parent()) || qobject_cast<QDialog *>(widget) || qobject_cast<QMainWindow *>(widget)) &&
+                (QEvent::Show==event->type() || QEvent::StyleChange==event->type())) {
+            _helper->setVariant(widget, _dark ? "dark" : "light");
+        }
+
         // fallback
         return ParentStyleClass::eventFilter( object, event );
 
@@ -1392,7 +1485,7 @@ namespace Adwaita
             // state
             const State& state( option.state );
             bool enabled( state & State_Enabled );
-            bool mouseOver( enabled && ( state & State_MouseOver ) );
+            bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
             bool hasFocus( enabled && ( state & State_HasFocus ) );
 
             // icon
@@ -1508,10 +1601,6 @@ namespace Adwaita
     //_____________________________________________________________________
     void Style::loadConfiguration()
     {
-
-        // load helper configuration
-        _helper->loadConfig();
-
         // reinitialize engines
         _animations->setupEngines();
         _windowManager->initialize();
@@ -1559,8 +1648,26 @@ namespace Adwaita
     { return insideMargin( option->rect, Metrics::Frame_FrameWidth ); }
 
     //___________________________________________________________________________________________________________________
+    QRect Style::pushButtonFocusRect(const QStyleOption* option, const QWidget* ) const
+    { return insideMargin( option->rect, 3 ); }
+
+    //___________________________________________________________________________________________________________________
     QRect Style::checkBoxContentsRect( const QStyleOption* option, const QWidget* ) const
-    { return visualRect( option, option->rect.adjusted( Metrics::CheckBox_Size + Metrics::CheckBox_ItemSpacing, 0, 0, 0 ) ); }
+    { return visualRect( option, option->rect.adjusted( Metrics::CheckBox_Size + 2 * Metrics::CheckBox_ItemSpacing, 0, 0, 0 ) ); }
+
+    //___________________________________________________________________________________________________________________
+    QRect Style::checkBoxIndicatorRect(const QStyleOption* option, const QWidget* widget ) const
+    { return ParentStyleClass::subElementRect( SE_CheckBoxIndicator, option, widget ).translated( Metrics::CheckBox_ItemSpacing, 0 ); }
+
+    //___________________________________________________________________________________________________________________
+    QRect Style::checkBoxFocusRect(const QStyleOption* option, const QWidget* widget ) const
+    {
+        return QRect( option->rect.left() + 2,
+                      option->rect.top() + 1,
+                      ParentStyleClass::subElementRect( SE_CheckBoxFocusRect, option, widget ).right() - option->rect.left(),
+                      option->rect.height() - 2
+                    );
+    }
 
     //___________________________________________________________________________________________________________________
     QRect Style::lineEditContentsRect( const QStyleOption* option, const QWidget* widget ) const
@@ -1737,6 +1844,25 @@ namespace Adwaita
 
     }
 
+    //___________________________________________________________________________________________________________________
+    QRect Style::sliderFocusRect(const QStyleOption *option, const QWidget *widget) const
+    {
+
+        const QStyleOptionSlider* sliderOption( qstyleoption_cast<const QStyleOptionSlider*>( option ) );
+
+        QRect r( option->rect );
+
+        if (sliderOption->orientation == Qt::Vertical) {
+            int thickness = Slider_GrooveThickness + 8;
+            return QRect(r.center().x() - thickness / 2, r.top() + 1, thickness + 1, r.height() - 1);
+        }
+        else {
+            int thickness = Slider_GrooveThickness + 6;
+            return QRect(r.left() + 1, r.center().y() - thickness / 2, r.width() - 1, thickness + 1);
+        }
+
+    }
+
     //____________________________________________________________________
     QRect Style::tabBarTabLeftButtonRect( const QStyleOption* option, const QWidget* ) const
     {
@@ -1846,9 +1972,11 @@ namespace Adwaita
         if( verticalTabs )
         {
 
-            tabBarRect.setHeight( qMin( tabBarRect.height(), rect.height() - 2 ) );
-            if( tabBarAlignment == Qt::AlignCenter ) tabBarRect.moveTop( rect.top() + ( rect.height() - tabBarRect.height() )/2 );
-            else tabBarRect.moveTop( rect.top()+1 );
+            tabBarRect.setTop(option->rect.top() + 1);
+            tabBarRect.setBottom(option->rect.bottom() - 1);
+            //tabBarRect.setHeight( qMin( tabBarRect.height(), rect.height() - 2 ) );
+            //if( tabBarAlignment == Qt::AlignCenter ) tabBarRect.moveTop( rect.top() + ( rect.height() - tabBarRect.height() )/2 );
+            //else tabBarRect.moveTop( rect.top()+1 );
 
         } else {
 
@@ -2080,106 +2208,60 @@ namespace Adwaita
     //______________________________________________________________
     QRect Style::groupBoxSubControlRect( const QStyleOptionComplex* option, SubControl subControl, const QWidget* widget ) const
     {
-
-        QRect rect = option->rect;
-        switch( subControl )
+        if (const QStyleOptionGroupBox *groupBox = qstyleoption_cast<const QStyleOptionGroupBox *>(option))
         {
+            QRect rect = ParentStyleClass::subControlRect(CC_GroupBox, option, subControl, widget);
+            int topMargin = 0;
+            int topHeight = 0;
+            int verticalAlignment = proxy()->styleHint(SH_GroupBox_TextLabelVerticalAlignment, groupBox, widget);
 
-            case SC_GroupBoxFrame: return rect;
-
-            case SC_GroupBoxContents:
+            if (!groupBox->text.isEmpty())
             {
-
-                // cast option and check
-                const QStyleOptionGroupBox *groupBoxOption = qstyleoption_cast<const QStyleOptionGroupBox*>( option );
-                if( !groupBoxOption ) break;
-
-                // take out frame width
-                rect = insideMargin( rect, Metrics::Frame_FrameWidth );
-
-                // get state
-                bool checkable( groupBoxOption->subControls & QStyle::SC_GroupBoxCheckBox );
-                bool emptyText( groupBoxOption->text.isEmpty() );
-
-                // calculate title height
-                int titleHeight( 0 );
-                if( !emptyText ) titleHeight = groupBoxOption->fontMetrics.height();
-                if( checkable ) titleHeight = qMax( titleHeight, int(Metrics::CheckBox_Size) );
-
-                // add margin
-                if( titleHeight > 0 ) titleHeight += 2*Metrics::GroupBox_TitleMarginWidth;
-
-                rect.adjust( 0, titleHeight, 0, 0 );
+                topHeight = groupBox->fontMetrics.height();
+                if (verticalAlignment & Qt::AlignVCenter)
+                {
+                    topMargin = topHeight / 2;
+                }
+                else if (verticalAlignment & Qt::AlignTop)
+                {
+                    topMargin = topHeight;
+                }
+            }
+            QRect frameRect = groupBox->rect;
+            frameRect.setTop(topMargin);
+            if (subControl == SC_GroupBoxFrame)
+            {
                 return rect;
-
             }
-
-            case SC_GroupBoxCheckBox:
-            case SC_GroupBoxLabel:
+            else if (subControl == SC_GroupBoxContents)
             {
-
-                // cast option and check
-                const QStyleOptionGroupBox *groupBoxOption = qstyleoption_cast<const QStyleOptionGroupBox*>( option );
-                if( !groupBoxOption ) break;
-
-                // take out frame width
-                rect = insideMargin( rect, Metrics::Frame_FrameWidth );
-
-                bool emptyText( groupBoxOption->text.isEmpty() );
-                bool checkable( groupBoxOption->subControls & QStyle::SC_GroupBoxCheckBox );
-
-                // calculate title height
-                int titleHeight( 0 );
-                int titleWidth( 0 );
-                if( !emptyText )
-                {
-                    QFontMetrics fontMetrics = option->fontMetrics;
-                    titleHeight = qMax( titleHeight, fontMetrics.height() );
-                    titleWidth += fontMetrics.size( _mnemonics->textFlags(), groupBoxOption->text ).width();
-                }
-
-                if( checkable )
-                {
-                    titleHeight = qMax( titleHeight, int(Metrics::CheckBox_Size) );
-                    titleWidth += Metrics::CheckBox_Size;
-                    if( !emptyText ) titleWidth += Metrics::CheckBox_ItemSpacing;
-                }
-
-                // adjust height
-                QRect titleRect( rect );
-                titleRect.setHeight( titleHeight );
-                titleRect.translate( 0, Metrics::GroupBox_TitleMarginWidth );
-
-                // center
-                titleRect = centerRect( titleRect, titleWidth, titleHeight );
-
-                if( subControl == SC_GroupBoxCheckBox )
-                {
-
-                    // vertical centering
-                    titleRect = centerRect( titleRect, titleWidth, Metrics::CheckBox_Size );
-
-                    // horizontal positioning
-                    QRect subRect( titleRect.topLeft(), QSize( Metrics::CheckBox_Size, titleRect.height() ) );
-                    return visualRect( option->direction, titleRect, subRect );
-
-                } else {
-
-                    // vertical centering
-                    QFontMetrics fontMetrics = option->fontMetrics;
-                    titleRect = centerRect( titleRect, titleWidth, fontMetrics.height() );
-
-                    // horizontal positioning
-                    QRect subRect( titleRect );
-                    if( checkable ) subRect.adjust( Metrics::CheckBox_Size + Metrics::CheckBox_ItemSpacing, 0, 0, 0 );
-                    return visualRect( option->direction, titleRect, subRect );
-
-                }
-
+                int margin = 0;
+                int leftMarginExtension = 16;
+                return frameRect.adjusted(leftMarginExtension + margin, margin + topHeight, -margin, -margin);
             }
 
-            default: break;
+            if (const QGroupBox *groupBoxWidget = qobject_cast<const QGroupBox *>(widget))
+            {
+                 //Prepare metrics for a bold font
+                QFont font = widget->font();
+                font.setBold(true);
+                QFontMetrics fontMetrics(font);
 
+                QSize textRect = fontMetrics.boundingRect(groupBoxWidget->title()).size() + QSize(2, 2);
+                if (subControl == SC_GroupBoxCheckBox)
+                {
+                    int indicatorWidth = proxy()->pixelMetric(PM_IndicatorWidth, option, widget);
+                    int indicatorHeight = proxy()->pixelMetric(PM_IndicatorHeight, option, widget);
+                    rect.setWidth(indicatorWidth);
+                    rect.setHeight(indicatorHeight);
+                    rect.moveTop((textRect.height() - indicatorHeight) / 2);
+                }
+                else if (subControl == SC_GroupBoxLabel)
+                {
+                    rect.setSize(textRect);
+                }
+            }
+            return rect;
         }
 
         return ParentStyleClass::subControlRect( CC_GroupBox, option, subControl, widget );
@@ -2315,33 +2397,53 @@ namespace Adwaita
 
             case SC_SpinBoxUp:
 
+            if (rect.width() > 2 * rect.height() + 24)
                 return QRect(rect.right() - rect.height() - 1,
                              rect.top(),
                              rect.height(),
                              rect.height() - 1
                             );
+            else
+                return QRect(rect.right() - 0.6 * rect.height(),
+                             rect.top(),
+                             rect.height() * 0.6,
+                            rect.height() / 2 + 3 );
 
             case SC_SpinBoxDown:
             {
 
+            if (rect.width() > 2 * rect.height() + 24)
                 return QRect(rect.right() - 2 * rect.height(),
                              rect.top(),
                              rect.height(),
                              rect.height() - 1
                             );
+            else
+                return QRect(rect.right() - 0.6 * rect.height(),
+                             rect.top() + rect.height() / 2 - 2,
+                             rect.height() * 0.6,
+                             rect.height() / 2 + 1 );
 
             }
 
             case SC_SpinBoxEditField:
             {
 
+
                 int frameWidth( pixelMetric( PM_SpinBoxFrameWidth, option, widget ) );
 
                 QRect labelRect;
-                labelRect = QRect(
-                    rect.left(), rect.top(),
-                    rect.width() - 2 * rect.height() - frameWidth ,
-                    rect.height() );
+
+                if (rect.width() > 2 * rect.height() + 24)
+                    labelRect = QRect(
+                        rect.left(), rect.top(),
+                        rect.width() - 2 * rect.height() - frameWidth,
+                        rect.height() );
+                else
+                    labelRect = QRect(
+                        rect.left(), rect.top(),
+                        rect.width() - 0.6 * rect.height() - frameWidth,
+                        rect.height() );
 
                 // remove right side line editor margins
                 if( !flat && labelRect.height() >= option->fontMetrics.height() + 2*frameWidth )
@@ -2407,7 +2509,7 @@ namespace Adwaita
 
             case SC_ScrollBarSubLine:
             case SC_ScrollBarAddLine:
-            return scrollBarInternalSubControlRect( option, subControl );
+            return QRect();
 
             case SC_ScrollBarGroove:
             {
@@ -2503,7 +2605,7 @@ namespace Adwaita
 
         switch( subControl )
         {
-            case QStyle::SC_DialGroove: return insideMargin( rect, (Metrics::Slider_ControlThickness - Metrics::Slider_GrooveThickness)/2 );
+            case QStyle::SC_DialGroove: return insideMargin( rect, (Metrics::Slider_ControlThickness - Metrics::Slider_GrooveThickness)/2 + 2 );
             case QStyle::SC_DialHandle:
             {
 
@@ -2783,7 +2885,7 @@ namespace Adwaita
             && toolButtonOption->features&QStyleOptionToolButton::PopupDelay
             && !hasPopupMenu );
 
-        int marginWidth( autoRaise ? Metrics::ToolButton_MarginWidth : Metrics::Button_MarginWidth + Metrics::Frame_FrameWidth );
+        int marginWidth( Metrics::Button_MarginWidth + Metrics::Frame_FrameWidth );
 
         if( hasInlineIndicator ) size.rwidth() += Metrics::ToolButton_InlineIndicatorWidth;
         size = expandSize( size, marginWidth );
@@ -3086,7 +3188,7 @@ namespace Adwaita
         #endif
 
         bool enabled( state & State_Enabled );
-        bool mouseOver( enabled && isInputWidget && ( state & State_MouseOver ) );
+        bool mouseOver( (state & State_Active) && enabled && isInputWidget && ( state & State_MouseOver ) );
         bool hasFocus( enabled && isInputWidget && ( state & State_HasFocus ) );
 
         // focus takes precedence over mouse over
@@ -3106,6 +3208,9 @@ namespace Adwaita
             Side side( reverseLayout ? SideRight : SideLeft );
             _helper->renderSidePanelFrame( painter, rect, outline, side );
 
+        } else if (qobject_cast<const QAbstractScrollArea *>(widget)) {
+            QColor outline( _helper->frameOutlineColor( palette, mouseOver, hasFocus, opacity, mode ) );
+            _helper->renderSquareFrame( painter, rect, outline, hasFocus );
         } else {
 
             QColor background( isTitleWidget ? palette.color( widget->backgroundRole() ):QColor() );
@@ -3141,7 +3246,7 @@ namespace Adwaita
             // copy state
             const State& state( option->state );
             bool enabled( state & State_Enabled );
-            bool mouseOver( enabled && ( state & State_MouseOver ) );
+            bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
             bool hasFocus( enabled && ( state & State_HasFocus ) );
 
             // focus takes precedence over mouse over
@@ -3154,7 +3259,7 @@ namespace Adwaita
 
             // render
             QColor background( palette.color( QPalette::Base ) );
-            QColor outline( _helper->frameOutlineColor( palette, mouseOver, hasFocus, opacity, mode ) );
+            QColor outline( _helper->inputOutlineColor( palette, mouseOver, hasFocus, opacity, mode ) );
             if (qobject_cast<const QComboBox*>(widget))
                 _helper->renderFlatFrame( painter, rect, background, outline, hasFocus );
             else
@@ -3181,8 +3286,8 @@ namespace Adwaita
 
         if( rect.width() < 10 ) return true;
 
-        QColor outlineColor( palette.color( QPalette::Dark ) );
-        QPen pen(outlineColor.darker(115), 1);
+        QColor outlineColor( Helper::mix(palette.color( QPalette::Window ), palette.color( QPalette::WindowText ), 0.35) );
+        QPen pen(outlineColor, 1);
         pen.setStyle( Qt::CustomDashLine );
         pen.setDashPattern(QVector<qreal>() << 2 << 1);
 
@@ -3228,28 +3333,6 @@ namespace Adwaita
     //______________________________________________________________
     bool Style::drawFrameGroupBoxPrimitive( const QStyleOption* option, QPainter* painter, const QWidget* ) const
     {
-
-        // cast option and check
-        const QStyleOptionFrame *frameOption( qstyleoption_cast<const QStyleOptionFrame*>( option ) );
-        if( !frameOption ) return true;
-
-        // no frame for flat groupboxes
-        QStyleOptionFrameV2 frameOption2( *frameOption );
-        if( frameOption2.features & QStyleOptionFrameV2::Flat ) return true;
-
-        // normal frame
-        const QPalette& palette( option->palette );
-        QColor background( _helper->frameBackgroundColor( palette ) );
-        QColor outline( _helper->frameOutlineColor( palette ) );
-
-        /*
-         * need to reset painter's clip region in order to paint behind textbox label
-         * (was taken out in QCommonStyle)
-         */
-
-        painter->setClipRegion( option->rect );
-        _helper->renderFrame( painter, option->rect, background, outline );
-
         return true;
 
     }
@@ -3313,7 +3396,7 @@ namespace Adwaita
 
         // define colors
         const QPalette& palette( option->palette );
-        QColor background( _helper->frameBackgroundColor( palette ) );
+        QColor background( palette.color(QPalette::Base) );
         QColor outline( _helper->frameOutlineColor( palette ) );
         _helper->renderTabWidgetFrame( painter, rect, background, outline, corners );
 
@@ -3333,7 +3416,7 @@ namespace Adwaita
         // get rect, orientation, palette
         QRect rect( option->rect );
         QColor outline( _helper->frameOutlineColor( option->palette ) );
-        QColor background( option->palette.mid().color().lighter(115) );
+        QColor background = _helper->tabBarColor( option->palette, option->state );
 
         // setup painter
         painter->setBrush( background );
@@ -3375,7 +3458,7 @@ namespace Adwaita
         // store state
         const State& state( option->state );
         bool enabled( state & State_Enabled );
-        bool mouseOver( enabled && ( state & State_MouseOver ) );
+        bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
         bool hasFocus( enabled && ( state & State_HasFocus ) );
 
         // detect special buttons
@@ -3462,15 +3545,11 @@ namespace Adwaita
         // invert arrows if requested by (hidden) options
         if( StyleConfigData::viewInvertSortIndicator() ) orientation = (orientation == ArrowUp) ? ArrowDown:ArrowUp;
 
-        // state, rect and palette
-        const QRect& rect( option->rect );
-        const QPalette& palette( option->palette );
-
         // define color and polygon for drawing arrow
-        QColor color = _helper->arrowColor( palette, QPalette::ButtonText );
+        QColor color = _helper->headerTextColor( option->palette, state );
 
         // render
-        _helper->renderArrow( painter, rect, color, orientation );
+        _helper->renderArrow( painter, option->rect, color, orientation );
 
         return true;
     }
@@ -3489,7 +3568,8 @@ namespace Adwaita
         // button state
         const State& state( option->state );
         bool enabled( state & State_Enabled );
-        bool mouseOver( enabled && ( state & State_MouseOver ) );
+        bool windowActive( state & State_Active );
+        bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
         bool hasFocus( ( enabled && ( state & State_HasFocus ) ) && !( widget && widget->focusProxy()));
         bool sunken( state & ( State_On|State_Sunken ) );
         bool flat( buttonOption->features & QStyleOptionButton::Flat );
@@ -3526,7 +3606,7 @@ namespace Adwaita
             QColor background( _helper->buttonBackgroundColor( palette, mouseOver, hasFocus, sunken, opacity, mode ) );
 
             // render
-            _helper->renderButtonFrame( painter, rect, background, outline, shadow, hasFocus, sunken, mouseOver );
+            _helper->renderButtonFrame( painter, rect, background, outline, shadow, hasFocus, sunken, mouseOver, enabled && windowActive );
 
         }
 
@@ -3546,8 +3626,9 @@ namespace Adwaita
         const State& state( option->state );
         bool autoRaise( state & State_AutoRaise );
         bool enabled( state & State_Enabled );
+        bool windowActive( state & State_Active );
         bool sunken( state & (State_On | State_Sunken) );
-        bool mouseOver( enabled && (option->state & State_MouseOver) );
+        bool mouseOver( (state & State_Active) && enabled && (option->state & State_MouseOver) );
         bool hasFocus( enabled && (option->state & (State_HasFocus | State_Sunken)) );
 
         /*
@@ -3557,7 +3638,7 @@ namespace Adwaita
         AnimationMode mode( _animations->widgetStateEngine().buttonAnimationMode( widget ) );
         qreal opacity( _animations->widgetStateEngine().buttonOpacity( widget ) );
 
-        if( !autoRaise || mouseOver )
+        if( !autoRaise || mouseOver || sunken )
         {
 
             // need to check widget for popup mode, because option is not set properly
@@ -3578,7 +3659,7 @@ namespace Adwaita
             }
 
             // render
-            _helper->renderButtonFrame( painter, rect, background, outline, shadow, hasFocus, sunken, mouseOver );
+            _helper->renderButtonFrame( painter, rect, background, outline, shadow, hasFocus, sunken, mouseOver, windowActive );
 
         } else {
 
@@ -3722,10 +3803,10 @@ namespace Adwaita
 
         // store flags
         const State& state( option->state );
-        bool mouseOver( ( state & State_MouseOver ) && ( !abstractItemView || abstractItemView->selectionMode() != QAbstractItemView::NoSelection ) );
+        bool mouseOver( (state & State_Active) && ( state & State_MouseOver ) && ( !abstractItemView || abstractItemView->selectionMode() != QAbstractItemView::NoSelection ) );
         bool selected( state & State_Selected );
         bool enabled( state & State_Enabled );
-        bool active( state & State_Active );
+        bool windowActive( state & State_Active );
 
         bool hasCustomBackground = viewItemOption->backgroundBrush.style() != Qt::NoBrush && !( state & State_Selected );
         bool hasSolidBackground = !hasCustomBackground || viewItemOption->backgroundBrush.style() == Qt::SolidPattern;
@@ -3737,7 +3818,7 @@ namespace Adwaita
 
         // define color group
         QPalette::ColorGroup colorGroup;
-        if( enabled ) colorGroup = active ? QPalette::Active : QPalette::Inactive;
+        if( enabled ) colorGroup = windowActive ? QPalette::Active : QPalette::Inactive;
         else colorGroup = QPalette::Disabled;
 
         // render alternate background
@@ -3794,12 +3875,13 @@ namespace Adwaita
         // store flags
         const State& state( option->state );
         bool enabled( state & State_Enabled );
-        bool mouseOver( enabled && ( state & State_MouseOver ) );
+        bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
         bool sunken( enabled && ( state & State_Sunken ) );
         bool active( ( state & (State_On|State_NoChange) ) );
+        bool windowActive( state & State_Active );
 
         const QColor& outline( _helper->frameOutlineColor( palette ) );
-        const QColor& background( _helper->buttonBackgroundColor(palette, mouseOver, false, sunken ).lighter() );
+        const QColor& background( _helper->buttonBackgroundColor(palette, mouseOver, false, sunken ) );
 
         // checkbox state
         CheckBoxState checkBoxState( CheckOff );
@@ -3833,7 +3915,7 @@ namespace Adwaita
 
         // render
         QColor shadow( _helper->shadowColor( palette ) );
-        _helper->renderCheckBox( painter, rect, background, outline, tickColor, sunken, checkBoxState, animation );
+        _helper->renderCheckBox( painter, rect, background, outline, tickColor, sunken, checkBoxState, animation, enabled && windowActive );
         return true;
 
     }
@@ -3849,12 +3931,13 @@ namespace Adwaita
         // store flags
         const State& state( option->state );
         bool enabled( state & State_Enabled );
-        bool mouseOver( enabled && ( state & State_MouseOver ) );
+        bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
         bool sunken( state & State_Sunken );
         bool checked( state & State_On );
+        bool windowActive( state & State_Active );
 
         const QColor& outline( _helper->frameOutlineColor( palette ) );
-        const QColor& background( _helper->buttonBackgroundColor(palette, mouseOver, false, sunken ).lighter() );
+        const QColor& background( _helper->buttonBackgroundColor(palette, mouseOver, false, sunken ) );
 
         // radio button state
         RadioButtonState radioButtonState( state & State_On ? RadioOn:RadioOff );
@@ -3886,7 +3969,7 @@ namespace Adwaita
         }
 
         // render
-        _helper->renderRadioButton( painter, rect, background, outline, tickColor, sunken, radioButtonState, animation );
+        _helper->renderRadioButton( painter, rect, background, outline, tickColor, sunken, enabled && windowActive, radioButtonState, animation );
 
         return true;
 
@@ -3903,19 +3986,18 @@ namespace Adwaita
         // store state
         const State& state( option->state );
         bool autoRaise( state & State_AutoRaise );
+        bool enabled( state & State_Enabled );
+        bool windowActive( state & State_Active );
+        bool hasFocus( enabled && ( state & ( State_HasFocus | State_Sunken ) ) );
+        bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
+        bool sunken( enabled && ( state & State_Sunken ) );
 
         // do nothing for autoraise buttons
-        if( autoRaise || !(toolButtonOption->subControls & SC_ToolButtonMenu) ) return true;
+        if( (autoRaise && !sunken && !mouseOver) || !(toolButtonOption->subControls & SC_ToolButtonMenu) ) return true;
 
         // store palette and rect
         const QPalette& palette( option->palette );
         const QRect& rect( option->rect );
-
-        // store state
-        bool enabled( state & State_Enabled );
-        bool hasFocus( enabled && ( state & ( State_HasFocus | State_Sunken ) ) );
-        bool mouseOver( enabled && ( state & State_MouseOver ) );
-        bool sunken( enabled && ( state & State_Sunken ) );
 
         // update animation state
         // mouse over takes precedence over focus
@@ -3928,7 +4010,7 @@ namespace Adwaita
         // render as push button
         QColor shadow( _helper->shadowColor( palette ) );
         QColor outline( _helper->buttonOutlineColor( palette, mouseOver, hasFocus, opacity, mode ) );
-        QColor background( _helper->buttonBackgroundColor( palette, mouseOver, hasFocus, false, opacity, mode ) );
+        QColor background( _helper->buttonBackgroundColor( palette, mouseOver, hasFocus, sunken, opacity, mode ) );
 
         QRect frameRect( rect );
         painter->setClipRect( rect );
@@ -3936,7 +4018,7 @@ namespace Adwaita
         frameRect = visualRect( option, frameRect );
 
         // render
-        _helper->renderButtonFrame( painter, frameRect, background, outline, shadow, hasFocus, sunken, mouseOver );
+        _helper->renderButtonFrame( painter, frameRect, background, outline, shadow, hasFocus, sunken, mouseOver, windowActive );
 
         // also render separator
         QRect separatorRect( rect.adjusted( 0, 2, -2, -2 ) );
@@ -4135,7 +4217,7 @@ namespace Adwaita
             // state
             bool expanderOpen( state & State_Open );
             bool enabled( state & State_Enabled );
-            bool mouseOver( enabled && ( state & State_MouseOver ) );
+            bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
 
             // expander rect
             int expanderSize = qMin( rect.width(), rect.height() );
@@ -4209,7 +4291,7 @@ namespace Adwaita
         const State& state( option->state );
         bool enabled( state & State_Enabled );
         bool sunken( state & (State_On | State_Sunken) );
-        bool mouseOver( enabled && (option->state & State_MouseOver) );
+        bool mouseOver( (state & State_Active) && enabled && (option->state & State_MouseOver) );
         bool hasFocus( enabled && !mouseOver && (option->state & State_HasFocus) );
         bool flat( buttonOption->features & QStyleOptionButton::Flat );
 
@@ -4306,7 +4388,15 @@ namespace Adwaita
 
         // render text
         if( hasText && textRect.isValid() )
-        { drawItemText( painter, textRect, textFlags, palette, enabled, buttonOption->text, textRole ); }
+        {
+            if ( enabled && !sunken && !mouseOver && !flat ) {
+                if ( _dark )
+                    drawItemText( painter, textRect.adjusted(0, -1, 0, -1), textFlags, palette, false, buttonOption->text, QPalette::Dark );
+                else
+                    drawItemText( painter, textRect.adjusted(0, 1, 0, 1), textFlags, palette, false, buttonOption->text, QPalette::Light );
+            }
+            drawItemText( painter, textRect, textFlags, palette, enabled, buttonOption->text, textRole );
+        }
 
         return true;
 
@@ -4327,7 +4417,7 @@ namespace Adwaita
         const State& state( option->state );
         bool enabled( state & State_Enabled );
         bool sunken( state & (State_On | State_Sunken) );
-        bool mouseOver( enabled && (option->state & State_MouseOver) );
+        bool mouseOver( (state & State_Active) && enabled && (option->state & State_MouseOver) );
         bool flat( state & State_AutoRaise );
 
         // focus flag is set to match the background color in either renderButtonFrame or renderToolButtonFrame
@@ -4511,7 +4601,7 @@ namespace Adwaita
         const State& state( option->state );
         bool enabled( state & State_Enabled );
         bool sunken( state & (State_On | State_Sunken) );
-        bool mouseOver( enabled && (option->state & State_MouseOver) );
+        bool mouseOver( (state & State_Active) && enabled && (option->state & State_MouseOver) );
         bool hasFocus( enabled && !mouseOver && (option->state & State_HasFocus) );
         bool flat( !comboBoxOption->frame );
 
@@ -4520,10 +4610,6 @@ namespace Adwaita
         // change pen color directly
         painter->save();
         painter->setPen( QPen( option->palette.color( textRole ), 1 ) );
-
-        // translate painter for pressed down comboboxes
-        if( sunken && !flat )
-        { painter->translate( 1, 1 ); }
 
         #if QT_VERSION >= 0x050000
         if (const QStyleOptionComboBox *cb = qstyleoption_cast<const QStyleOptionComboBox *>(option)) {
@@ -4585,7 +4671,7 @@ namespace Adwaita
         painter->save();
         painter->setRenderHint( QPainter::Antialiasing, false );
         painter->setBrush( Qt::NoBrush );
-        painter->setPen( Helper::mix( palette.color( QPalette::Button ), palette.color( QPalette::ButtonText ), 0.3 ) );
+        painter->setPen( Helper::mix( palette.color( QPalette::Window ), palette.color( QPalette::Shadow ), 0.2 ) );
 
         painter->drawLine( rect.bottomLeft(), rect.bottomRight() );
         painter->restore();
@@ -4615,8 +4701,13 @@ namespace Adwaita
 
         painter->save();
         painter->setRenderHint( QPainter::Antialiasing, false );
+
+        painter->setBrush( palette.window().color() );
+        painter->setPen( Qt::NoPen );
+        painter->drawRect( rect );
+
         painter->setBrush( Qt::NoBrush );
-        painter->setPen( Helper::mix( palette.color( QPalette::Button ), palette.color( QPalette::ButtonText ), 0.3 ) );
+        painter->setPen( Helper::mix( palette.color( QPalette::Window ), palette.color( QPalette::Shadow ), 0.2 ) );
 
         painter->drawLine( rect.bottomLeft(), rect.bottomRight() );
         painter->restore();
@@ -4643,9 +4734,16 @@ namespace Adwaita
     }
 
     bool Style::drawMenuEmptyAreaControl( const QStyleOption* option, QPainter* painter, const QWidget* widget ) const {
-        painter->setPen(_helper->frameOutlineColor(option->palette));
+        if (_isGNOME)
+            painter->setPen(Qt::transparent);
+        else
+            painter->setPen(option->palette.window().color().darker(150));
+
         painter->setBrush(option->palette.base().color());
-        painter->drawRect(option->rect.adjusted(0, 0, -1, -1));
+        if (_isGNOME)
+            painter->drawRect(option->rect);
+        else
+            painter->drawRect(option->rect.adjusted(0, 0, -1, -1));
         return true;
     }
 
@@ -4662,8 +4760,7 @@ namespace Adwaita
         // copy rect and palette
         const QRect& rect( option->rect );
         const QPalette& palette( option->palette );
-        const QColor& outline( _helper->frameOutlineColor( palette ) );
-        const QColor& background( palette.base().color() );
+        const QColor& background( palette.color(QPalette::Active, QPalette::Base) );
 
         painter->setPen(Qt::NoPen);
         painter->setBrush(background);
@@ -4699,6 +4796,7 @@ namespace Adwaita
         // store state
         const State& state( option->state );
         bool enabled( state & State_Enabled );
+        bool windowActive( state & State_Active );
         bool selected( enabled && (state & State_Selected) );
         bool sunken( enabled && (state & (State_On|State_Sunken) ) );
         bool reverseLayout( option->direction == Qt::RightToLeft );
@@ -4709,17 +4807,9 @@ namespace Adwaita
         {
 
             QColor color = _helper->focusColor( palette );
-            QColor outlineColor = _helper->focusOutlineColor( palette );
+            QColor outlineColor = Qt::transparent;
 
             Sides sides = 0;
-            if( !menuItemOption->menuRect.isNull() )
-            {
-                if( rect.top() <= menuItemOption->menuRect.top() ) sides |= SideTop;
-                if( rect.bottom() >= menuItemOption->menuRect.bottom() ) sides |= SideBottom;
-                if( rect.left() <= menuItemOption->menuRect.left() ) sides |= SideLeft;
-                if( rect.right() >= menuItemOption->menuRect.right() ) sides |= SideRight;
-            }
-
             _helper->renderFocusRect( painter, rect, color, outlineColor, sides );
 
         }
@@ -4749,11 +4839,9 @@ namespace Adwaita
             { _helper->renderCheckBoxBackground( painter, checkBoxRect, palette.color( QPalette::Window ), outline, sunken ); }
             */
 
+            QColor color( state&State_Enabled ? state&State_Selected ? palette.highlightedText().color() : palette.foreground().color() : palette.text().color() );
             CheckBoxState state( menuItemOption->checked ? CheckOn : CheckOff );
-            bool active( menuItemOption->checked );
-            QColor shadow( _helper->shadowColor( palette ) );
-            QColor color( _helper->checkBoxIndicatorColor( palette, false, enabled && active ) );
-            _helper->renderCheckBox( painter, checkBoxRect, Qt::transparent, outline, color, sunken, state );
+            _helper->renderCheckBox( painter, checkBoxRect, QColor(QColor::Invalid), color, color, sunken, state, enabled && windowActive);
 
         } else if( menuItemOption->checkType == QStyleOptionMenuItem::Exclusive ) {
 
@@ -4764,10 +4852,9 @@ namespace Adwaita
             { _helper->renderRadioButtonBackground( painter, checkBoxRect, palette.color( QPalette::Window ), outline, sunken ); }
             */
 
+            QColor color( state&State_Enabled ? state&State_Selected ? palette.highlightedText().color() : palette.foreground().color() : palette.text().color() );
             bool active( menuItemOption->checked );
-            QColor shadow( _helper->shadowColor( palette ) );
-            QColor color( _helper->checkBoxIndicatorColor( palette, false, enabled && active ) );
-            _helper->renderRadioButton( painter, checkBoxRect, Qt::transparent, outline, color, sunken, active ? RadioOn:RadioOff );
+            _helper->renderRadioButton( painter, checkBoxRect, QColor(QColor::Invalid), color, color, sunken, enabled && windowActive, active ? RadioOn:RadioOff );
 
         }
 
@@ -4945,7 +5032,7 @@ namespace Adwaita
             qreal progress( _animations->busyIndicatorEngine().value() );
 
             QColor color( palette.color( QPalette::Highlight ) );
-            _helper->renderProgressBarBusyContents( painter, rect, color, outline, horizontal, reverse, progress );
+            _helper->renderProgressBarBusyContents( painter, rect, color, color.darker(), horizontal, reverse, progress );
 
         } else {
 
@@ -4970,8 +5057,7 @@ namespace Adwaita
 
             }
 
-
-            _helper->renderProgressBarContents( painter, rect, palette.color( QPalette::Highlight ), outline );
+            _helper->renderProgressBarContents( painter, rect, palette.color( QPalette::Highlight ), palette.color( QPalette::Highlight ).darker() );
             painter->setClipRegion( oldClipRegion );
 
         }
@@ -5027,17 +5113,18 @@ namespace Adwaita
         const QStyleOptionSlider *sliderOption( qstyleoption_cast<const QStyleOptionSlider*>( option ) );
         if( !sliderOption ) return true;
 
+        const State& state( option->state );
+        bool horizontal( state & State_Horizontal );
+
         // copy rect and palette
-        const QRect& rect( option->rect.adjusted(4, 4, -4, -4) );
+        const QRect& rect( horizontal ? option->rect.adjusted(-1, 4, 0, -4) : option->rect.adjusted(4, -1, -4, 0) );
         const QPalette& palette( option->palette );
 
         // define handle rect
         QRect handleRect;
-        const State& state( option->state );
-        bool horizontal( state & State_Horizontal );
 
         bool enabled( state & State_Enabled );
-        bool mouseOver( enabled && ( state & State_MouseOver ) );
+        bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
 
         // check focus from relevant parent
         const QWidget* parent( scrollBarParent( widget ) );
@@ -5299,7 +5386,7 @@ namespace Adwaita
         const QPalette& palette( option->palette );
         const State& state( option->state );
         bool enabled( state & State_Enabled );
-        bool mouseOver( enabled && ( state & State_MouseOver ) );
+        bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
         bool sunken( enabled && ( state & (State_On|State_Sunken) ) );
 
         const QStyleOptionHeader* headerOption( qstyleoption_cast<const QStyleOptionHeader*>( option ) );
@@ -5324,7 +5411,7 @@ namespace Adwaita
 
         // outline
         painter->setBrush( Qt::NoBrush );
-        painter->setPen( _helper->alphaColor( palette.color( QPalette::WindowText ), 0.6 ) );
+        painter->setPen( _helper->alphaColor( palette.color( QPalette::WindowText ), 0.2 ) );
 
         if( isCorner )
         {
@@ -5345,8 +5432,6 @@ namespace Adwaita
         }
 
         // separators
-        painter->setPen( _helper->alphaColor( palette.color( QPalette::WindowText ), 0.4 ) );
-
         if( horizontal )
         {
             if( headerOption->section != 0 || isFirst )
@@ -5389,7 +5474,7 @@ namespace Adwaita
             fnt.setBold(true);
             painter->setFont(fnt);
             QPalette palette(header->palette);
-            palette.setColor(QPalette::Text, _helper->frameOutlineColor(palette).darker(150));
+            palette.setColor(QPalette::Text, _helper->headerTextColor( palette, header->state ) );
             proxy()->drawItemText(painter, rect, header->textAlignment, palette, (header->state & State_Active), header->text, QPalette::Text);
         }
         return true;
@@ -5478,12 +5563,20 @@ namespace Adwaita
             QFont font = painter->font();
             font.setBold(true);
             painter->setFont(font);
-            if (tabV2.state & State_Selected)
-                painter->setPen(option->palette.brush(QPalette::WindowText).color());
-            else if (tabV2.state & State_MouseOver)
-                painter->setPen(option->palette.brush(QPalette::Mid).color().darker(150));
-            else
-                painter->setPen(option->palette.brush(QPalette::Mid).color().darker(130));
+            if (!(tabV2.state & State_Enabled)) {
+                if (tabV2.state & State_Selected)
+                    painter->setPen(Helper::mix(option->palette.brush(QPalette::Text).color(), option->palette.brush(QPalette::Window).color(), 0.3));
+                else
+                    painter->setPen(Helper::mix(option->palette.brush(QPalette::Text).color(), option->palette.brush(QPalette::Window).color(), 0.4));
+            }
+            else {
+                if (tabV2.state & State_Selected)
+                    painter->setPen(option->palette.brush(QPalette::WindowText).color());
+                else if (tabV2.state & State_Active && tabV2.state & State_MouseOver)
+                    painter->setPen(Helper::mix(option->palette.brush(QPalette::Dark).color(), option->palette.brush(QPalette::Text).color(), 0.7));
+                else
+                    painter->setPen(Helper::mix(option->palette.brush(QPalette::Dark).color(), option->palette.brush(QPalette::Text).color(), 0.6));
+            }
 
             proxy()->drawItemText(painter, tr, alignment, tab->palette, tab->state & State_Enabled, tab->text, QPalette::NoRole);
 
@@ -5583,7 +5676,7 @@ namespace Adwaita
         const State& state( option->state );
         bool enabled( state & State_Enabled );
         bool selected( state & State_Selected );
-        bool mouseOver( !selected && ( state & State_MouseOver ) );
+        bool mouseOver( (state & State_Active) && !selected && ( state & State_MouseOver ) && enabled );
 
         // check if tab is being dragged
         bool isDragged( widget && selected && painter->device() != widget );
@@ -5634,29 +5727,29 @@ namespace Adwaita
         {
             case QTabBar::RoundedNorth:
             case QTabBar::TriangularNorth:
-                corners = CornerTopLeft|CornerTopRight;
+                corners = CornersTop;
                 break;
 
             case QTabBar::RoundedSouth:
             case QTabBar::TriangularSouth:
-                corners = CornerBottomLeft|CornerBottomRight;
+                corners = CornersBottom;
                 break;
 
             case QTabBar::RoundedWest:
             case QTabBar::TriangularWest:
-                corners = CornerTopLeft|CornerBottomLeft;
+                corners = CornersLeft;
                 break;
 
             case QTabBar::RoundedEast:
             case QTabBar::TriangularEast:
-                corners = CornerTopRight|CornerBottomRight;
+                corners = CornersRight;
                 break;
 
             default: break;
         }
 
         // underline
-        QColor underline( selected ? _helper->focusColor( palette ) : mouseOver ? option->palette.brush(QPalette::Mid).color() : Qt::transparent );
+        QColor underline( enabled && selected ? _helper->focusColor( palette ) : selected || mouseOver ? option->palette.color(QPalette::Window).darker() : Qt::transparent );
 
         // outline
         QColor outline = QColor();
@@ -5664,10 +5757,13 @@ namespace Adwaita
             outline = _helper->frameOutlineColor( palette );
         }
 
+        // background
+        QColor background = _helper->tabBarColor( option->palette, option->state );
+
         // render
         QRegion oldRegion( painter->clipRegion() );
         painter->setClipRect( option->rect, Qt::IntersectClip );
-        _helper->renderTabBarTab( painter, rect, underline, outline, corners, widget && widget->property("movable").toBool() );
+        _helper->renderTabBarTab( painter, rect, background, underline, outline, corners, widget && widget->property("movable").toBool() );
         painter->setClipRegion( oldRegion );
 
         return true;
@@ -5774,7 +5870,7 @@ namespace Adwaita
         const State& flags( option->state );
         bool enabled( flags&State_Enabled );
         bool selected( flags&State_Selected );
-        bool mouseOver( enabled && !selected && ( flags&State_MouseOver ) );
+        bool mouseOver( (flags & State_Active) && enabled && !selected && ( flags&State_MouseOver ) );
 
         // update animation state
         /*
@@ -5875,43 +5971,40 @@ namespace Adwaita
     //______________________________________________________________
     bool Style::drawGroupBoxComplexControl( const QStyleOptionComplex* option, QPainter* painter, const QWidget* widget ) const
     {
+        if (const QStyleOptionGroupBox *groupBox = qstyleoption_cast<const QStyleOptionGroupBox *>(option))
+        {
+            painter->save();
 
-        // base class method
-        ParentStyleClass::drawComplexControl( CC_GroupBox, option, painter, widget );
+            QRect textRect = proxy()->subControlRect(CC_GroupBox, groupBox, SC_GroupBoxLabel, widget);
+            QRect checkBoxRect = proxy()->subControlRect(CC_GroupBox, groupBox, SC_GroupBoxCheckBox, widget);
 
-        // cast option and check
-        const QStyleOptionGroupBox *groupBoxOption = qstyleoption_cast<const QStyleOptionGroupBox*>( option );
-        if( !groupBoxOption ) return true;
-
-        // do nothing if either label is not selected or groupbox is empty
-        if( !(option->subControls & QStyle::SC_GroupBoxLabel) || groupBoxOption->text.isEmpty() )
-        { return true; }
-
-        // store palette and rect
-        const QPalette& palette( option->palette );
-
-        // check focus state
-        const State& state( option->state );
-        bool enabled( state & State_Enabled );
-        bool hasFocus( enabled && (option->state & State_HasFocus) );
-        if( !hasFocus ) return true;
-
-        // alignment
-        int textFlags( groupBoxOption->textAlignment | _mnemonics->textFlags() );
-
-        // update animation state
-        _animations->widgetStateEngine().updateState( widget, AnimationFocus, hasFocus );
-        bool isFocusAnimated( _animations->widgetStateEngine().isAnimated( widget, AnimationFocus ) );
-        qreal opacity( _animations->widgetStateEngine().opacity( widget, AnimationFocus ) );
-
-        // get relevant rect
-        QRect textRect = subControlRect( CC_GroupBox, option, SC_GroupBoxLabel, widget );
-        textRect = option->fontMetrics.boundingRect( textRect, textFlags, groupBoxOption->text );
-
-        // focus color
-        QColor focusColor;
-        if( isFocusAnimated ) focusColor = _helper->alphaColor( _helper->focusColor( palette ), opacity );
-        else if( hasFocus ) focusColor =  _helper->focusColor( palette );
+            // Draw title
+            if ((groupBox->subControls & QStyle::SC_GroupBoxLabel) && !groupBox->text.isEmpty())
+            {
+                QColor textColor = groupBox->textColor;
+                if (textColor.isValid())
+                {
+                    painter->setPen(textColor);
+                }
+                int alignment = int(groupBox->textAlignment);
+                if (!styleHint(QStyle::SH_UnderlineShortcut, option, widget))
+                {
+                    alignment |= Qt::TextHideMnemonic;
+                }
+                QFont font = painter->font();
+                font.setBold(true);
+                painter->setFont(font);
+                painter->drawText(textRect, Qt::TextShowMnemonic | Qt::AlignLeft| Qt::AlignVCenter |alignment, groupBox->text);
+            }
+            if (groupBox->subControls & SC_GroupBoxCheckBox)
+            {
+                QStyleOptionButton box;
+                box.QStyleOption::operator=(*groupBox);
+                box.rect = checkBoxRect;
+                proxy()->drawPrimitive(PE_IndicatorCheckBox, &box, painter, widget);
+            }
+            painter->restore();
+        }
 
         return true;
 
@@ -5928,7 +6021,7 @@ namespace Adwaita
         // need to alter palette for focused buttons
         const State& state( option->state );
         bool enabled( state & State_Enabled );
-        bool mouseOver( enabled && (option->state & State_MouseOver) );
+        bool mouseOver( (state & State_Active) && enabled && (option->state & State_MouseOver) );
         bool hasFocus( enabled && (option->state & State_HasFocus) );
         bool sunken( state & (State_On | State_Sunken) );
         bool flat( state & State_AutoRaise );
@@ -5985,7 +6078,7 @@ namespace Adwaita
                 copy.state |= State_Enabled | State_On | State_Sunken;
             }
             if ( button->underMouse() ) {
-                copy.state |= State_Enabled | State_MouseOver;
+                copy.state |= State_Enabled | State_MouseOver | State_Active;
             }
 
         }
@@ -6005,8 +6098,10 @@ namespace Adwaita
             copy.rect = buttonRect;
             if( inTabBar ) {
                 QRect rect(option->rect);
-                QColor background( option->palette.mid().color().lighter(115 + 10.0 * mouseOpacity - 20 * pressedOpacity) );
-                QColor outline ( option->palette.mid().color());
+                QColor background( _helper->mix(option->palette.window().color(), option->palette.shadow().color(), 0.15) );
+                background = _helper->mix(background, Qt::white, 0.2 * mouseOpacity);
+                background = _helper->mix(background, Qt::black, 0.15 * pressedOpacity);
+                QColor outline ( _helper->frameOutlineColor(option->palette) );
                 painter->setPen(background);
                 painter->setBrush(background);
                 switch (toolButtonOption->arrowType) {
@@ -6033,6 +6128,14 @@ namespace Adwaita
                     break;
                 }
             }
+            else if (sunken && hasPopupMenu && !(toolButtonOption->activeSubControls&SC_ToolButton)) {
+                // Only menu button is active. so draw left hand side od button raised
+                QStyleOptionToolButton btn( copy );
+                btn.state|=State_Raised;
+                btn.state&=~State_Sunken;
+                btn.state&=~State_AutoRaise;
+                drawPrimitive( PE_PanelButtonTool, &btn, painter, widget);
+            }
             else {
                 drawPrimitive( PE_PanelButtonTool, &copy, painter, widget);
             }
@@ -6043,7 +6146,7 @@ namespace Adwaita
         {
 
             copy.rect = menuRect;
-            if( !flat ) drawPrimitive( PE_IndicatorButtonDropDown, &copy, painter, widget );
+            if( !flat || mouseOver || sunken ) drawPrimitive( PE_IndicatorButtonDropDown, &copy, painter, widget );
 
             drawPrimitive( PE_IndicatorArrowDown, &copy, painter, widget );
 
@@ -6076,7 +6179,7 @@ namespace Adwaita
                     copy.state |= State_Enabled | State_On | State_Sunken;
                 }
                 if ( button->underMouse() ) {
-                    copy.state |= State_Enabled | State_MouseOver;
+                    copy.state |= State_Enabled | State_MouseOver | State_Active;
                 }
 
             } else if( !inTabBar && hasInlineIndicator ) {
@@ -6113,6 +6216,7 @@ namespace Adwaita
         // state
         const State& state( option->state );
         bool enabled( state & State_Enabled );
+        bool windowActive( state & State_Active );
         bool editable( comboBoxOption->editable );
         bool arrowActive( comboBoxOption->activeSubControls & SC_ComboBoxArrow );
         bool flat( !comboBoxOption->frame );
@@ -6122,13 +6226,13 @@ namespace Adwaita
         if (editable)
         {
 
-            mouseOver = arrowActive && enabled && ( state & State_MouseOver );
+            mouseOver = windowActive && arrowActive && enabled && ( state & State_MouseOver );
             hasFocus = enabled && ( state & ( State_HasFocus | State_Sunken ) );
             sunken = arrowActive && enabled && ( state & (State_On|State_Sunken) );
 
         } else {
 
-            mouseOver = enabled && ( state & State_MouseOver );
+            mouseOver = windowActive && enabled && ( state & State_MouseOver );
             hasFocus = enabled && ( state & ( State_HasFocus | State_Sunken ) );
             sunken = enabled && ( state & (State_On|State_Sunken) );
 
@@ -6166,7 +6270,7 @@ namespace Adwaita
                     QColor outline( _helper->buttonOutlineColor( palette, mouseOver, hasFocus, opacity, mode ) );
                     QColor background( _helper->buttonBackgroundColor( palette, mouseOver, hasFocus, sunken, opacity, mode ) );
 
-                    _helper->renderFlatButtonFrame( painter, subControlRect( CC_ComboBox, option, SC_ComboBoxArrow, widget), background, outline, shadow, hasFocus, sunken, mouseOver );
+                    _helper->renderFlatButtonFrame( painter, subControlRect( CC_ComboBox, option, SC_ComboBoxArrow, widget), background, outline, shadow, hasFocus, sunken, mouseOver, enabled && windowActive );
 
                     QStyleOptionComplex tmpOpt(*option);
                     tmpOpt.rect.setWidth(tmpOpt.rect.width() - subControlRect( CC_ComboBox, option, SC_ComboBoxArrow, widget).width() + 3);
@@ -6194,7 +6298,7 @@ namespace Adwaita
                     QColor background( _helper->buttonBackgroundColor( palette, mouseOver, hasFocus, sunken, opacity, mode ) );
 
                     // render
-                    _helper->renderButtonFrame( painter, rect, background, outline, shadow, hasFocus, sunken, mouseOver );
+                    _helper->renderButtonFrame( painter, rect, background, outline, shadow, hasFocus, sunken, mouseOver, enabled && windowActive );
 
                     if (hasFocus)
                     {
@@ -6224,9 +6328,6 @@ namespace Adwaita
 
             // arrow rect
             QRect arrowRect( subControlRect( CC_ComboBox, option, SC_ComboBoxArrow, widget ) );
-
-            // translate for non editable, non flat, sunken comboboxes
-            if( sunken && !flat && !editable ) arrowRect.translate( 1, 1 );
 
             // render
             _helper->renderArrow( painter, arrowRect, arrowColor, ArrowDown );
@@ -6294,7 +6395,8 @@ namespace Adwaita
         // copy state
         const State& state( option->state );
         bool enabled( state & State_Enabled );
-        bool mouseOver( enabled && ( state & State_MouseOver ) );
+        bool windowActive( state & State_Active );
+        bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
         bool hasFocus( enabled && ( state & State_HasFocus ) );
         bool horizontal( sliderOption->orientation == Qt::Horizontal );
         Side tickSide { SideNone };
@@ -6361,6 +6463,18 @@ namespace Adwaita
         // groove
         if( sliderOption->subControls & SC_SliderGroove )
         {
+
+            if ( hasFocus ) {
+
+                QRect focusRect = proxy()->subElementRect( SE_SliderFocusRect, option, widget );
+
+                QStyleOptionFocusRect fropt;
+                fropt.QStyleOption::operator=(*option);
+                fropt.rect = focusRect;
+                proxy()->drawPrimitive( PE_FrameFocusRect, &fropt, painter, widget );
+
+            }
+
             // retrieve groove rect
             QRect grooveRect( subControlRect( CC_Slider, sliderOption, SC_SliderGroove, widget ) );
 
@@ -6443,12 +6557,12 @@ namespace Adwaita
             qreal opacity( _animations->widgetStateEngine().buttonOpacity( widget ) );
 
             // define colors
-            QColor background( _helper->buttonBackgroundColor( palette, mouseOver, false, sunken, opacity, mode ).lighter() );
+            QColor background( _helper->buttonBackgroundColor( palette, mouseOver, false, sunken, opacity, mode ) );
             QColor outline( _helper->sliderOutlineColor( palette, handleActive && mouseOver, hasFocus, opacity, mode ) );
             QColor shadow( _helper->shadowColor( palette ) );
 
             // render
-            _helper->renderSliderHandle( painter, handleRect, background, outline, shadow, sunken, tickSide );
+            _helper->renderSliderHandle( painter, handleRect, background, outline, shadow, sunken, enabled && windowActive, tickSide );
 
         }
 
@@ -6466,7 +6580,7 @@ namespace Adwaita
         const QPalette& palette( option->palette );
         const State& state( option->state );
         bool enabled( state & State_Enabled );
-        bool mouseOver( enabled && ( state & State_MouseOver ) );
+        bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
         bool hasFocus( enabled && ( state & State_HasFocus ) );
         bool horizontal( sliderOption->orientation == Qt::Horizontal );
         Side tickSide { SideNone };
@@ -6534,7 +6648,8 @@ namespace Adwaita
             QColor shadow( _helper->shadowColor( palette ) );
 
             // render
-            _helper->renderSliderHandle( painter, handleRect, background, outline, shadow, sunken, tickSide );
+            qreal angle = 270 - 180 * dialAngle( sliderOption, sliderOption->sliderPosition ) / M_PI;
+            _helper->renderSliderHandle( painter, handleRect, background, outline, shadow, sunken, enabled, tickSide, angle );
 
         }
 
@@ -6549,7 +6664,7 @@ namespace Adwaita
         bool enabled( option->state & State_Enabled );
         qreal opacity( _animations->scrollBarEngine().opacity( widget, QStyle::SC_ScrollBarGroove ) );
         bool animated( StyleConfigData::scrollBarShowOnMouseOver() && _animations->scrollBarEngine().isAnimated( widget,  AnimationHover, QStyle::SC_ScrollBarGroove ) );
-        bool mouseOver( option->state & State_MouseOver );
+        bool mouseOver( (option->state & State_Active) && option->state & State_MouseOver );
 
         if( opacity == AnimationData::OpacityInvalid ) opacity = 1;
 
@@ -6625,25 +6740,18 @@ namespace Adwaita
 
             // render background
             painter->setClipRect( rect );
-            QColor outline( active ? QColor():_helper->frameOutlineColor( palette, false, false ) );
-            QColor background( _helper->titleBarColor( active ) );
+            QColor outline( _helper->frameOutlineColor( palette, false, false ) );
+            QColor background( _helper->titleBarColor( palette, active ) );
             _helper->renderTabWidgetFrame( painter, rect.adjusted( -1, -1, 1, 3 ), background, outline, CornersTop );
 
-            const bool useSeparator(
-                active &&
-                _helper->titleBarColor( active ) != palette.color( QPalette::Window ) &&
-                !( titleBarOption->titleBarState & Qt::WindowMinimized ) );
 
-            if( useSeparator )
-            {
-                painter->setRenderHint( QPainter::Antialiasing, false );
-                painter->setBrush( Qt::NoBrush );
-                painter->setPen( palette.color( QPalette::Highlight ) );
-                painter->drawLine( rect.bottomLeft(), rect.bottomRight() );
-            }
+            painter->setRenderHint( QPainter::Antialiasing, false );
+            painter->setBrush( Qt::NoBrush );
+            painter->setPen( outline );
+            painter->drawLine( rect.bottomLeft(), rect.bottomRight() );
 
             // render text
-            palette.setColor( QPalette::WindowText, _helper->titleBarTextColor( active ) );
+            palette.setColor( QPalette::WindowText, _helper->titleBarTextColor( palette, active ) );
             QRect textRect( subControlRect( CC_TitleBar, option, SC_TitleBarLabel, widget ) );
             ParentStyleClass::drawItemText( painter, textRect, Qt::AlignCenter, palette, active, titleBarOption->text, QPalette::WindowText );
 
@@ -6711,7 +6819,7 @@ namespace Adwaita
             } else {
 
                 if( mouseOver ) iconMode = QIcon::Active;
-                else if( active ) iconMode = QIcon::Selected;
+//                else if( active ) iconMode = QIcon::Selected;
                 else iconMode = QIcon::Normal;
 
                 iconState = subControlActive ? QIcon::On : QIcon::Off;
@@ -6750,7 +6858,7 @@ namespace Adwaita
         enabled &= !atLimit;
 
         // update mouse-over effect
-        bool mouseOver( enabled && ( state & State_MouseOver ) );
+        bool mouseOver( (state & State_Active) && enabled && ( state & State_MouseOver ) );
 
         // check animation state
         bool subControlHover( enabled && ( mouseOver ) && ( option->activeSubControls & subControl ) );
@@ -6779,12 +6887,18 @@ namespace Adwaita
             painter->setPen(outline);
             int highlight = hasFocus ? 1 : 0;
             painter->drawLine(arrowRect.left(), arrowRect.top() + 2 + highlight, arrowRect.left(), arrowRect.bottom() - 1 - highlight);
-            painter->drawLine(arrowRect.right(), arrowRect.top() + 2 + highlight, arrowRect.right(), arrowRect.bottom() - 1 - highlight);
+        }
+        if (subControl == SC_SpinBoxUp) {
+            painter->setBrush(Qt::NoBrush);
+            painter->setPen(outline);
+            int highlight = hasFocus ? 1 : 0;
+            painter->drawLine(arrowRect.left(), arrowRect.top() + 2 + highlight, arrowRect.left(), arrowRect.bottom() - 1 - highlight);
         }
 
         if (true) {
             painter->setPen(Qt::NoPen);
-            QColor background = Helper::mix( palette.base().color(), outline, 0.4 * opacity + 0.6 * pressedOpacity );
+            QColor background = Helper::mix( palette.base().color(), palette.text().color(), opacity * 0.1);
+            background = Helper::mix( background, palette.dark().color(), pressedOpacity);
             painter->setBrush(background);
             if (hasFocus)
                 painter->drawRect(arrowRect.adjusted(1, 3, -1, -2));
@@ -6873,7 +6987,7 @@ namespace Adwaita
         const QPalette& palette( option->palette );
         QColor color( _helper->arrowColor( palette, QPalette::WindowText ) );
 
-        bool widgetMouseOver( ( option->state & State_MouseOver ) );
+        bool widgetMouseOver( ( option->state & State_MouseOver ) && ( option->state & State_MouseOver ) );
         if( widget ) widgetMouseOver = widget->underMouse();
         #if QT_VERSION >= 0x050000
         // in case this QStyle is used by QQuickControls QStyle wrapper
@@ -6910,7 +7024,7 @@ namespace Adwaita
             return color;
         }
 
-        bool mouseOver( _animations->scrollBarEngine().isHovered( widget, control ) );
+        bool mouseOver( (option->state & State_Active) && _animations->scrollBarEngine().isHovered( widget, control ) );
         bool animated( _animations->scrollBarEngine().isAnimated( widget, AnimationHover, control ) );
         qreal opacity( _animations->scrollBarEngine().opacity( widget, control ) );
 
@@ -6958,6 +7072,7 @@ namespace Adwaita
     //____________________________________________________________________________________
     void Style::setTranslucentBackground( QWidget* widget ) const
     {
+        if (!_isKDE) return;
         widget->setAttribute( Qt::WA_TranslucentBackground );
 
         #ifdef Q_WS_WIN
@@ -7216,7 +7331,7 @@ namespace Adwaita
     //____________________________________________________________________
     bool Style::showIconsInMenuItems( void ) const
     {
-        return Adwaita::Settings::ShowIconsInMenuItems;
+        return Adwaita::Settings::ShowIconsInMenuItems && !QCoreApplication::testAttribute(Qt::AA_DontShowIconsInMenus);
     }
 
     //____________________________________________________________________

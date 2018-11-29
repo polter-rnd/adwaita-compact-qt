@@ -27,13 +27,14 @@
 
 #include <QPainterPath>
 #include <QWidget>
+#include <QStyle>
 
 #if ADWAITA_HAVE_X11
 #include <QX11Info>
 #include <xcb/xcb.h>
 #endif
 
-#include <math.h>
+#include <cmath>
 
 namespace Adwaita
 {
@@ -56,9 +57,6 @@ namespace Adwaita
         virtual ~Helper()
         {}
 
-        //* load configuration
-        virtual void loadConfig();
-
         //*@name color utilities
         //@{
 
@@ -69,7 +67,7 @@ namespace Adwaita
 
             if (bias <= 0.0) return c1;
             if (bias >= 1.0) return c2;
-            if (isnan(bias)) return c1;
+            if (std::isnan(bias)) return c1;
 
             qreal r = mixQreal(c1.redF(),   c2.redF(),   bias);
             qreal g = mixQreal(c1.greenF(), c2.greenF(), bias);
@@ -102,15 +100,18 @@ namespace Adwaita
         { return alphaColor( palette.color( QPalette::Shadow ), 0.15 ); }
 
         //* titlebar color
-        const QColor& titleBarColor( bool active ) const
-        { return active ? _activeTitleBarColor:_inactiveTitleBarColor; }
+        QColor titleBarColor( const QPalette& palette, bool active ) const
+        { return palette.color(active ? QPalette::Active : QPalette::Inactive, QPalette::Window); }
 
         //* titlebar text color
-        const QColor& titleBarTextColor( bool active ) const
-        { return active ? _activeTitleBarTextColor:_inactiveTitleBarTextColor; }
+        QColor titleBarTextColor( const QPalette& palette, bool active ) const
+        { return palette.color(active ? QPalette::Active : QPalette::Inactive, QPalette::WindowText); }
 
         //* frame outline color, using animations
         QColor frameOutlineColor( const QPalette&, bool mouseOver = false, bool hasFocus = false, qreal opacity = AnimationData::OpacityInvalid, AnimationMode = AnimationNone ) const;
+
+        //* input outline color, using animations
+        QColor inputOutlineColor( const QPalette& palette, bool mouseOver = false, bool hasFocus = false, qreal opacity = AnimationData::OpacityInvalid, AnimationMode = AnimationNone ) const;
 
         //* focus outline color, using animations
         QColor focusOutlineColor( const QPalette& ) const;
@@ -165,6 +166,12 @@ namespace Adwaita
         //* separator color
         QColor separatorColor( const QPalette& ) const;
 
+        //* TreeView header text color
+        QColor headerTextColor( const QPalette& palette, const QStyle::State state ) const;
+
+        //* TabBar background color
+        QColor tabBarColor( const QPalette& palette, const QStyle::State state ) const;
+
         //* merge active and inactive palettes based on ratio, for smooth enable state change transition
         QPalette disabledPalette( const QPalette&, qreal ratio ) const;
 
@@ -185,6 +192,9 @@ namespace Adwaita
         //* generic frame
         void renderFrame( QPainter*, const QRect&, const QColor& color, const QColor& outline = QColor(), bool hasFocus = false ) const;
 
+        //* square frame
+        void renderSquareFrame( QPainter* painter, const QRect& rect, QColor color, bool hasFocus ) const;
+
         //* generic frame flat on right side
         void renderFlatFrame( QPainter*, const QRect&, const QColor& color, const QColor& outline = QColor(), bool hasFocus = false ) const;
 
@@ -195,10 +205,10 @@ namespace Adwaita
         void renderMenuFrame( QPainter*, const QRect&, const QColor& color, const QColor& outline, bool roundCorners = true ) const;
 
         //* button frame
-        void renderButtonFrame( QPainter*, const QRect&, const QColor& color, const QColor& outline, const QColor& shadow, bool focus, bool sunken, bool mouseOver ) const;
+        void renderButtonFrame(QPainter*, const QRect&, const QColor& color, const QColor& outline, const QColor& shadow, bool focus, bool sunken, bool mouseOver , bool active) const;
 
         //* button frame
-        void renderFlatButtonFrame( QPainter*, const QRect&, const QColor& color, const QColor& outline, const QColor& shadow, bool focus, bool sunken, bool mouseOver ) const;
+        void renderFlatButtonFrame(QPainter*, const QRect&, const QColor& color, const QColor& outline, const QColor& shadow, bool focus, bool sunken, bool mouseOver , bool active) const;
 
         //* toolbutton frame
         void renderToolButtonFrame( QPainter*, const QRect&, const QColor& color, bool sunken ) const;
@@ -219,19 +229,19 @@ namespace Adwaita
         void renderCheckBoxBackground( QPainter*, const QRect&, const QColor& color, const QColor& outline, bool sunken ) const;
 
         //* checkbox
-        void renderCheckBox( QPainter*, const QRect&, const QColor& background, const QColor& outline, const QColor& tickColor, bool sunken, CheckBoxState state, qreal animation = AnimationData::OpacityInvalid ) const;
+        void renderCheckBox( QPainter*, const QRect&, const QColor& background, const QColor& outline, const QColor& tickColor, bool sunken, CheckBoxState state, qreal animation = AnimationData::OpacityInvalid, bool active = true ) const;
 
         //* radio button
         void renderRadioButtonBackground( QPainter*, const QRect&, const QColor& color, const QColor& outline, bool sunken ) const;
 
         //* radio button
-        void renderRadioButton( QPainter*, const QRect&, const QColor& background, const QColor& outline, const QColor& tickColor, bool sunken, RadioButtonState state, qreal animation = AnimationData::OpacityInvalid ) const;
+        void renderRadioButton(QPainter*, const QRect&, const QColor& background, const QColor& outline, const QColor& tickColor, bool sunken, bool enabled, RadioButtonState state, qreal animation = AnimationData::OpacityInvalid ) const;
 
         //* slider groove
         void renderSliderGroove( QPainter*, const QRect&, const QColor& ) const;
 
         //* slider handle
-        void renderSliderHandle( QPainter*, const QRect&, const QColor&, const QColor& outline, const QColor& shadow, bool sunken, Side ticks) const;
+        void renderSliderHandle( QPainter*, const QRect&, const QColor&, const QColor& outline, const QColor& shadow, bool sunken, bool enabled, Side ticks, qreal angle = 0.0 ) const;
 
         //* dial groove
         void renderDialGroove( QPainter*, const QRect&, const QColor& ) const;
@@ -261,7 +271,7 @@ namespace Adwaita
         { return renderProgressBarGroove( painter, rect, color, Qt::transparent ); }
 
         //* tabbar tab
-        void renderTabBarTab( QPainter*, const QRect&, const QColor& color, const QColor& outline, Corners, bool renderFrame ) const;
+        void renderTabBarTab(QPainter*, const QRect&, const QColor &background, const QColor& color, const QColor& outline, Corners, bool renderFrame ) const;
 
         //* generic arrow
         void renderArrow( QPainter*, const QRect&, const QColor&, ArrowOrientation ) const;
@@ -329,6 +339,8 @@ namespace Adwaita
         qreal frameRadius( qreal bias = 0 ) const
         { return qMax( qreal( Metrics::Frame_FrameRadius ) - 0.5 + bias, 0.0 ); }
 
+        void setVariant(QWidget *widget, const QByteArray &variant);
+
         protected:
 
         //* initialize
@@ -341,14 +353,6 @@ namespace Adwaita
         QPainterPath roundedPath( const QRectF&, Corners, qreal ) const;
 
         private:
-
-        //*@name windeco colors
-        //@{
-        QColor _activeTitleBarColor;
-        QColor _activeTitleBarTextColor;
-        QColor _inactiveTitleBarColor;
-        QColor _inactiveTitleBarTextColor;
-        //@}
 
         #if ADWAITA_HAVE_X11
 
