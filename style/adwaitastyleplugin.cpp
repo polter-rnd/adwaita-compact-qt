@@ -51,5 +51,5 @@ namespace Adwaita
 
     //_________________________________________________
     QStringList StylePlugin::keys() const
-    return QStringList() << QStringLiteral( "Adwaita-Compact" ); }
+    { return QStringList() << QStringLiteral( "Adwaita-Compact" ); }
 }
