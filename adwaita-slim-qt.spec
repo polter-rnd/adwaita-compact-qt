@@ -1,5 +1,5 @@
 Name:           adwaita-slim-qt
-Version:        1.0
+Version:        1.0.1
 Release:        5%{?dist}
 License:        LGPLv2+
 Summary:        Adwaita-Slim theme for Qt-based applications
